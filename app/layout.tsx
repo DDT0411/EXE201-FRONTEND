@@ -28,6 +28,11 @@ export default function RootLayout({
       <body className={`font-sans antialiased`}>
         {children}
         <Analytics />
+        {/* External AI Chatbot Integration */}
+        <script
+          src="https://ai.chatbotviet.com/api/chatbot.js?chatbotId=agent_94e296dbeaaa84ee&button=20&right=20"
+          defer
+        />
       </body>
     </html>
   )
