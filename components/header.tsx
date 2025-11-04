@@ -19,7 +19,7 @@ export function Header() {
           <img 
             src="/new_logo.svg" 
             alt="EatIT Logo" 
-            className="w-16 h-16 object-contain animate-glow bg-transparent"
+            className="w-14 h-14 object-contain rounded-full bg-white p-1 shadow-sm"
           />
           <span className="text-orange-600">{language === "vi" ? "EatIT" : "EatIT"}</span>
         </Link>
