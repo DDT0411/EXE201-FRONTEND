@@ -133,6 +133,92 @@
   animation: slideUp 0.5s ease-out;
 }
 
+/* Scroll Reveal Classes - Optimized for Mobile */
+.scroll-reveal {
+  opacity: 0;
+  /* Use transform instead of position for better performance on mobile */
+  will-change: opacity, transform;
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+  /* Reduce motion on mobile for better performance */
+  @media (max-width: 768px) {
+    transition-duration: 0.4s;
+  }
+}
+
+.scroll-reveal.fade-up {
+  transform: translateY(20px);
+  @media (max-width: 768px) {
+    transform: translateY(15px);
+  }
+}
+
+.scroll-reveal.fade-down {
+  transform: translateY(-20px);
+  @media (max-width: 768px) {
+    transform: translateY(-15px);
+  }
+}
+
+.scroll-reveal.fade-left {
+  transform: translateX(-20px);
+  @media (max-width: 768px) {
+    transform: translateX(-15px);
+  }
+}
+
+.scroll-reveal.fade-right {
+  transform: translateX(20px);
+  @media (max-width: 768px) {
+    transform: translateX(15px);
+  }
+}
+
+.scroll-reveal.scale {
+  transform: scale(0.95);
+  @media (max-width: 768px) {
+    transform: scale(0.98);
+  }
+}
+
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0) translateX(0) scale(1);
+  will-change: auto;
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal {
+    transition: opacity 0.3s ease-out;
+    transform: none !important;
+  }
+  
+  .scroll-reveal.revealed {
+    transform: none !important;
+  }
+}
+
+/* Staggered scroll reveal delays */
+.scroll-reveal-delay-100.revealed {
+  transition-delay: 0.1s;
+}
+
+.scroll-reveal-delay-200.revealed {
+  transition-delay: 0.2s;
+}
+
+.scroll-reveal-delay-300.revealed {
+  transition-delay: 0.3s;
+}
+
+.scroll-reveal-delay-400.revealed {
+  transition-delay: 0.4s;
+}
+
+.scroll-reveal-delay-500.revealed {
+  transition-delay: 0.5s;
+}
+
 .animate-glow {
   animation: glow 2s ease-in-out infinite;
 }
@@ -240,4 +326,14 @@
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #f5a623;
+}
+
+/* Hide scrollbar for category filter on mobile */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

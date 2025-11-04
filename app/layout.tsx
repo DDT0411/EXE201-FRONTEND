@@ -1,11 +1,9 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import Script from "next/script"
 import "./globals.css"
-
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+import { GeolocationRequest } from "@/components/geolocation-request"
 
 export const metadata: Metadata = {
   title: "EatIT",
@@ -26,13 +24,9 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className={`font-sans antialiased`}>
+        <GeolocationRequest />
         {children}
         <Analytics />
-        {/* External AI Chatbot Integration */}
-        <script
-          src="https://ai.chatbotviet.com/api/chatbot.js?chatbotId=agent_94e296dbeaaa84ee&button=20&right=20"
-          defer
-        />
       </body>
     </html>
   )

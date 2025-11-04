@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Facebook, Twitter, Instagram, Linkedin } from "lucide-react"
+import { Facebook, Instagram } from "lucide-react"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
 
@@ -19,7 +19,7 @@ export function Footer() {
               <img 
                 src="/new_logo.png" 
                 alt="EatIT Logo" 
-                className="w-10 h-10 object-contain animate-glow"
+                className="w-10 h-10"
               />
               <span className="text-orange-600 dark:text-orange-400">EatIT</span>
             </div>
@@ -103,7 +103,9 @@ export function Footer() {
             </h3>
             <div className="flex gap-4">
               <a
-                href="#"
+                href="https://www.facebook.com/profile.php?id=61582094917117"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-gray-600 dark:text-gray-400 hover:text-orange-600 transition-smooth hover:scale-125"
                 title="Facebook"
                 aria-label="Follow us on Facebook"
@@ -111,28 +113,14 @@ export function Footer() {
                 <Facebook size={20} />
               </a>
               <a
-                href="#"
-                className="text-gray-600 dark:text-gray-400 hover:text-orange-600 transition-smooth hover:scale-125"
-                title="Twitter"
-                aria-label="Follow us on Twitter"
-              >
-                <Twitter size={20} />
-              </a>
-              <a
-                href="#"
+                href="https://www.instagram.com/eatit.vn/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-gray-600 dark:text-gray-400 hover:text-orange-600 transition-smooth hover:scale-125"
                 title="Instagram"
                 aria-label="Follow us on Instagram"
               >
                 <Instagram size={20} />
-              </a>
-              <a
-                href="#"
-                className="text-gray-600 dark:text-gray-400 hover:text-orange-600 transition-smooth hover:scale-125"
-                title="LinkedIn"
-                aria-label="Follow us on LinkedIn"
-              >
-                <Linkedin size={20} />
               </a>
             </div>
           </div>

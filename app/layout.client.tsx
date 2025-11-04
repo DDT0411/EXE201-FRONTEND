@@ -4,6 +4,7 @@ import type React from "react"
 import { Analytics } from "@vercel/analytics/next"
 import { useTheme } from "@/hooks/use-theme"
 import { useEffect } from "react"
+import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 
 export function RootLayoutContent({
   children,
@@ -28,6 +29,7 @@ export function RootLayoutContent({
     <html lang="vi">
       <body className={`font-sans antialiased`}>
         {children}
+        <SonnerToaster position="top-right" richColors />
         <Analytics />
       </body>
     </html>

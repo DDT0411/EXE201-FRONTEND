@@ -5,11 +5,13 @@ import { useState } from "react"
 import { Menu, X } from "lucide-react"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
+import { useAuth } from "@/hooks/use-auth"
 
 export function Header() {
   const [isOpen, setIsOpen] = useState(false)
   const { language } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
+  const { user, isAuthenticated } = useAuth()
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 animate-fadeInDown">
@@ -17,9 +19,9 @@ export function Header() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-4 font-bold text-3xl transition-smooth hover:scale-105">
           <img 
-            src="/new_logo.svg" 
+            src="/new_logo.png" 
             alt="EatIT Logo" 
-            className="w-14 h-14 object-contain rounded-full bg-white p-1 shadow-sm"
+            className="w-16 h-16"
           />
           <span className="text-orange-600">{language === "vi" ? "EatIT" : "EatIT"}</span>
         </Link>
@@ -47,27 +49,36 @@ export function Header() {
         {/* Right Side Icons */}
         <div className="hidden md:flex items-center gap-4">
           <Link
-            href="/chatbot"
+            href="/surprise"
             className="p-2 rounded-full hover:bg-orange-100 transition-smooth hover:scale-110 relative group"
-            title={t("nav.chatbot")}
+            title={t("nav.surprise")}
           >
             <img 
               src="/Button.png" 
-              alt="Chatbot" 
+              alt="Food Recommendation" 
               className="w-9 h-9 object-contain"
             />
             <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-              {t("nav.chatbot")}
+              {t("nav.surprise")}
             </span>
           </Link>
 
-          {/* Login Button */}
-          <Link
-            href="/login"
-            className="px-8 py-3 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-smooth hover:shadow-lg hover:scale-105 font-medium text-lg"
-          >
-            {t("nav.login")}
-          </Link>
+          {/* Login Button / User Name */}
+          {isAuthenticated && user ? (
+            <Link
+              href="/profile?tab=settings"
+              className="px-8 py-3 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-smooth hover:shadow-lg hover:scale-105 font-medium text-lg"
+            >
+              {user.userName}
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="px-8 py-3 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-smooth hover:shadow-lg hover:scale-105 font-medium text-lg"
+            >
+              {t("nav.login")}
+            </Link>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -92,22 +103,31 @@ export function Header() {
             {t("nav.contact")}
           </Link>
           <Link
-            href="/chatbot"
+            href="/surprise"
             className="flex items-center gap-2 text-gray-700 hover:text-orange-600 py-2 transition-colors-smooth"
           >
             <img 
               src="/Button.png" 
-              alt="Chatbot" 
+              alt="Food Recommendation" 
               className="w-5 h-5 object-contain"
             />
-            {t("nav.chatbot")}
+            {t("nav.surprise")}
           </Link>
-          <Link
-            href="/login"
-            className="block w-full px-6 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 text-center font-medium transition-smooth"
-          >
-            {t("nav.login")}
-          </Link>
+          {isAuthenticated && user ? (
+            <Link
+              href="/profile?tab=settings"
+              className="block w-full px-6 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 text-center font-medium transition-smooth"
+            >
+              {user.userName}
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="block w-full px-6 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 text-center font-medium transition-smooth"
+            >
+              {t("nav.login")}
+            </Link>
+          )}
         </div>
       )}
     </header>
