@@ -4,19 +4,27 @@ import { useState, useEffect, Suspense, use } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { MapPin, Star, Phone, Clock, Leaf } from "lucide-react"
-import { getRestaurantDetail, Restaurant, DishDetail } from "@/lib/api"
+import { getRestaurantDetail, Restaurant, Rating, getRestaurantRatings, createRestaurantRating, RatingsListResponse } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
 import { RestaurantMap } from "@/components/restaurant-map"
 import Link from "next/link"
+import { toast } from "@/lib/toast"
 
 function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const restaurantId = Number.parseInt(id)
-  const { token } = useAuth()
+  const { token, isAuthenticated } = useAuth()
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [ratings, setRatings] = useState<Rating[]>([])
+  const [ratingsTotal, setRatingsTotal] = useState<number>(0)
+  const [isLoadingRatings, setIsLoadingRatings] = useState<boolean>(false)
+
+  const [star, setStar] = useState<number>(5)
+  const [comment, setComment] = useState<string>("")
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,6 +44,47 @@ function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
 
     fetchData()
   }, [restaurantId, token])
+
+  useEffect(() => {
+    const fetchRatings = async () => {
+      setIsLoadingRatings(true)
+      try {
+        const data: RatingsListResponse = await getRestaurantRatings(restaurantId, token || undefined)
+        setRatings(data.result || [])
+        setRatingsTotal(data.totalIteams || data.result?.length || 0)
+      } catch (err) {
+        console.error("Failed to fetch ratings:", err)
+      } finally {
+        setIsLoadingRatings(false)
+      }
+    }
+
+    fetchRatings()
+  }, [restaurantId, token])
+
+  const handleSubmitRating = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isAuthenticated || !token) {
+      toast.error("Vui lòng đăng nhập để đánh giá")
+      return
+    }
+    try {
+      setIsSubmitting(true)
+      await createRestaurantRating(restaurantId, { star, comment }, token)
+      toast.success("Đã thêm đánh giá")
+      setComment("")
+      setStar(5)
+      // refresh list
+      const data = await getRestaurantRatings(restaurantId, token)
+      setRatings(data.result || [])
+      setRatingsTotal(data.totalIteams || data.result?.length || 0)
+    } catch (err: any) {
+      console.error("Create rating failed:", err)
+      toast.error(err?.message || "Không thể gửi đánh giá")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -179,6 +228,74 @@ function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
                   <p className="text-gray-600 dark:text-gray-400 text-center py-8">
                     Quán này chưa có món ăn nào trong menu
                   </p>
+                )}
+              </div>
+
+              {/* Ratings Section */}
+              <div className="bg-white dark:bg-slate-800 rounded-lg p-6 lg:p-8 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Đánh giá ({ratingsTotal})</h2>
+                </div>
+
+                {/* Rating Form */}
+                <form onSubmit={handleSubmitRating} className="mb-6">
+                  <div className="flex items-center gap-4 mb-3">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Số sao:</label>
+                    <div className="flex items-center gap-2">
+                      {[1,2,3,4,5].map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setStar(v)}
+                          className={`p-1 rounded ${star >= v ? "text-yellow-400" : "text-gray-400"}`}
+                          aria-label={`Chọn ${v} sao`}
+                        >
+                          <Star size={22} className={star >= v ? "fill-yellow-400" : ""} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <textarea
+                    required
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Chia sẻ cảm nhận của bạn..."
+                    className="w-full p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    rows={3}
+                  />
+                  <div className="mt-3">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60"
+                    >
+                      {isSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
+                    </button>
+                  </div>
+                </form>
+
+                {/* Ratings List */}
+                {isLoadingRatings ? (
+                  <p className="text-gray-600 dark:text-gray-400">Đang tải đánh giá...</p>
+                ) : ratings.length > 0 ? (
+                  <div className="space-y-4">
+                    {ratings.map((r) => (
+                      <div key={r.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="font-semibold text-gray-900 dark:text-white">{r.userName}</div>
+                          <div className="flex items-center gap-1">
+                            {[1,2,3,4,5].map((v) => (
+                              <Star key={v} size={16} className={(r.star ?? 0) >= v ? "text-yellow-400 fill-yellow-400" : "text-gray-300"} />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">{new Date(r.createAt).toLocaleString("vi-VN")}</div>
+                        <div className="text-gray-800 dark:text-gray-200">{r.comment}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-600 dark:text-gray-400">Chưa có đánh giá nào.</p>
                 )}
               </div>
             </div>

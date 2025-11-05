@@ -9,24 +9,50 @@ import { getTranslation } from "@/lib/i18n"
 import { Check } from "lucide-react"
 import { useState } from "react"
 import { toast } from "@/lib/toast"
+import { useAuth } from "@/hooks/use-auth"
+import { createPremiumPayment } from "@/lib/api"
 
 export default function ChoosePlanPage() {
   const { language } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
   const router = useRouter()
   const [selectedPlan, setSelectedPlan] = useState<"free" | "premium">("free")
+  const { token, isAuthenticated } = useAuth()
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  const handleContinue = () => {
-    // Removed onboarding_completed marking for demo/testing purposes
-    
-    toast.success(
-      language === "vi"
-        ? `Chọn gói ${selectedPlan === "free" ? "Miễn phí" : "Premium"} thành công!`
-        : `${selectedPlan === "free" ? "Free" : "Premium"} plan selected successfully!`
-    )
-    
-    // Redirect to profile
-    router.push("/profile")
+  const handleContinue = async () => {
+    if (selectedPlan === "free") {
+      toast.success(language === "vi" ? "Chọn gói Miễn phí thành công!" : "Free plan selected successfully!")
+      router.push("/profile")
+      return
+    }
+
+    if (!isAuthenticated || !token) {
+      toast.error(language === "vi" ? "Vui lòng đăng nhập để mua Premium" : "Please log in to purchase Premium")
+      router.push("/login")
+      return
+    }
+
+    try {
+      setIsProcessing(true)
+      const origin = typeof window !== "undefined" ? window.location.origin : ""
+      const checkout = await createPremiumPayment(
+        {
+          ReturnUrl: `${origin}/payment/success`,
+          CancelUrl: `${origin}/choose-plan`,
+        },
+        token
+      )
+      // Open PayOS checkout in a new tab as per your flow
+      if (checkout.checkoutUrl) {
+        window.open(checkout.checkoutUrl, "_blank")
+        toast.info(language === "vi" ? "Đã mở trang thanh toán" : "Checkout opened in a new tab")
+      }
+    } catch (err: any) {
+      toast.error(err?.message || (language === "vi" ? "Không thể tạo thanh toán" : "Failed to create payment"))
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   const plans = [
@@ -144,9 +170,12 @@ export default function ChoosePlanPage() {
           <ScrollReveal direction="up" delay={300} className="text-center">
             <button
               onClick={handleContinue}
-              className="inline-block px-6 sm:px-8 py-3 sm:py-4 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-all duration-300 hover:shadow-lg hover:scale-105 text-sm sm:text-base"
+              disabled={isProcessing}
+              className="inline-block px-6 sm:px-8 py-3 sm:py-4 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-all duration-300 hover:shadow-lg hover:scale-105 text-sm sm:text-base disabled:opacity-60"
             >
-              {t("pricing.continueWith").replace("{plan}", selectedPlan === "free" ? t("pricing.free") : t("pricing.premium"))}
+              {isProcessing
+                ? (language === "vi" ? "Đang tạo thanh toán..." : "Creating payment...")
+                : t("pricing.continueWith").replace("{plan}", selectedPlan === "free" ? t("pricing.free") : t("pricing.premium"))}
             </button>
           </ScrollReveal>
         </div>

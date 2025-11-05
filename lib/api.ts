@@ -620,6 +620,11 @@ export interface Rating {
   comment: string
 }
 
+export interface RatingsListResponse {
+  totalIteams: number
+  result: Rating[]
+}
+
 // Get dish detail - Using Next.js API route to avoid CORS
 export async function getDishDetail(id: number, token?: string): Promise<DishDetail> {
   try {
@@ -823,6 +828,67 @@ export async function getRatings(id: number, token?: string): Promise<Rating[]> 
   }
 }
 
+// Get restaurant ratings list - Using Next.js API route to avoid CORS
+export async function getRestaurantRatings(
+  restaurantId: number,
+  token?: string
+): Promise<RatingsListResponse> {
+  try {
+    const headers: HeadersInit = {
+      Accept: "*/*",
+    }
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    const response = await fetch(`/api/rating/restaurants/${restaurantId}/ratings`, {
+      method: "GET",
+      headers,
+    })
+
+    const data = await response.json()
+    if (response.ok) {
+      return data as RatingsListResponse
+    } else {
+      throw new Error(data.message || "Failed to fetch restaurant ratings")
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Create a rating for a restaurant - Using Next.js API route to avoid CORS
+export async function createRestaurantRating(
+  restaurantId: number,
+  rating: { star: number; comment: string },
+  token: string
+): Promise<{ message: string }> {
+  try {
+    const response = await fetch(`/api/rating/restaurants/${restaurantId}/ratings`, {
+      method: "POST",
+      headers: {
+        Accept: "*/*",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(rating),
+    })
+
+    const data = await response.json()
+    if (response.ok) {
+      return data as { message: string }
+    } else {
+      throw new Error(data.message || "Failed to create rating")
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
 export interface FoodSuggestion {
   suggestion: string
   restaurantImg: string
@@ -858,6 +924,166 @@ export async function getFoodSuggestion(token?: string): Promise<FoodSuggestion>
     if (error instanceof Error) {
       throw error
     }
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Payment types
+export interface PremiumCheckout {
+  checkoutUrl: string
+  qrCode: string
+  orderCode: number
+}
+
+export interface PaymentHistoryItem {
+  paymentId: number
+  orderCode: number
+  amount: number
+  description: string
+  status: string
+  paymentType: string
+  premiumExpiryDate: string | null
+  createdAt: string
+  paidAt: string | null
+}
+
+export interface PaymentHistoryResponse {
+  payments: PaymentHistoryItem[]
+}
+
+export interface PremiumStatusResponse {
+  hasPremium: boolean
+  expiryDate: string | null
+}
+
+export interface PaymentSuccessResponse {
+  success: boolean
+  message: string
+  orderCode: string
+  status: string
+}
+
+// Create premium payment - Using Next.js API route to avoid CORS
+export async function createPremiumPayment(
+  params: { ReturnUrl?: string; CancelUrl?: string },
+  token: string
+): Promise<PremiumCheckout> {
+  try {
+    const query = new URLSearchParams()
+    if (params.ReturnUrl) query.append("ReturnUrl", params.ReturnUrl)
+    if (params.CancelUrl) query.append("CancelUrl", params.CancelUrl)
+    const url = `/api/payment/premium${query.toString() ? `?${query.toString()}` : ""}`
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) return data as PremiumCheckout
+    throw new Error(data.message || "Failed to create premium payment")
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+export async function getPaymentHistory(token: string): Promise<PaymentHistoryResponse> {
+  try {
+    const response = await fetch(`/api/payment/history`, {
+      method: "GET",
+      headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
+    })
+    const data = await response.json()
+    if (response.ok) return data as PaymentHistoryResponse
+    throw new Error(data.message || "Failed to fetch payment history")
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+export async function getPremiumStatus(token: string): Promise<PremiumStatusResponse> {
+  try {
+    const response = await fetch(`/api/payment/premium-status`, {
+      method: "GET",
+      headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
+    })
+    const data = await response.json()
+    if (response.ok) return data as PremiumStatusResponse
+    throw new Error(data.message || "Failed to fetch premium status")
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+export async function getPaymentSuccess(orderCode: string, token: string): Promise<PaymentSuccessResponse> {
+  try {
+    const response = await fetch(`/api/payment/success?orderCode=${encodeURIComponent(orderCode)}`, {
+      method: "GET",
+      headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
+    })
+    const data = await response.json()
+    if (response.ok) return data as PaymentSuccessResponse
+    throw new Error(data.message || "Failed to fetch payment success result")
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Favorite types
+export interface Favorite {
+  id: number
+  userName: string
+  dishName: string
+  restaurantName: string
+}
+
+export interface AddFavoriteParams {
+  dishid: number
+  restaurantid: number
+}
+
+// Get favorites - Using Next.js API route to avoid CORS
+export async function getFavorites(token: string): Promise<Favorite[]> {
+  try {
+    const response = await fetch(`/api/favorite/favorites`, {
+      method: "GET",
+      headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
+    })
+    const data = await response.json()
+    if (response.ok) return data as Favorite[]
+    throw new Error(data.message || "Failed to fetch favorites")
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Add favorite - Using Next.js API route to avoid CORS
+export async function addFavorite(params: AddFavoriteParams, token: string): Promise<boolean> {
+  try {
+    const formData = new FormData()
+    formData.append("dishid", params.dishid.toString())
+    formData.append("restaurantid", params.restaurantid.toString())
+
+    const response = await fetch(`/api/favorite/favorites`, {
+      method: "POST",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+    const data = await response.json()
+    if (response.ok) return data === true
+    throw new Error(data.message || "Failed to add favorite")
+  } catch (error) {
+    if (error instanceof Error) throw error
     throw new Error("Network error. Please check your connection.")
   }
 }

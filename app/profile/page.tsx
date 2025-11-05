@@ -4,13 +4,13 @@ import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { User, Settings, LogOut, Heart, Globe, Sparkles } from "lucide-react"
+import { User, Settings, LogOut, Heart, Globe, Sparkles, CreditCard } from "lucide-react"
 import Link from "next/link"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
 import { languages } from "@/lib/i18n"
 import { useAuth } from "@/hooks/use-auth"
-import { getUserProfile, updateUserProfile, logoutUser, changePassword, UserProfile, ChangePasswordParams } from "@/lib/api"
+import { getUserProfile, updateUserProfile, logoutUser, changePassword, UserProfile, ChangePasswordParams, getPaymentHistory, PaymentHistoryItem } from "@/lib/api"
 import { toast } from "@/lib/toast"
 
 function ProfileContent() {
@@ -27,6 +27,8 @@ function ProfileContent() {
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [isFetching, setIsFetching] = useState(true)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([])
+  const [loadingPayments, setLoadingPayments] = useState(false)
 
   const [formData, setFormData] = useState({
     userName: "",
@@ -89,6 +91,23 @@ function ProfileContent() {
 
     fetchProfile()
   }, [authUser, token, language])
+
+  // Fetch payment history
+  useEffect(() => {
+    const fetchPayments = async () => {
+      if (!token) return
+      try {
+        setLoadingPayments(true)
+        const res = await getPaymentHistory(token)
+        setPaymentHistory(res.payments || [])
+      } catch (e) {
+        console.error("Failed to fetch payment history", e)
+      } finally {
+        setLoadingPayments(false)
+      }
+    }
+    fetchPayments()
+  }, [token])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -711,27 +730,60 @@ function ProfileContent() {
                       </select>
                     </div>
 
-                    {/* Notifications Setting */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">{t("settings.notifications")}</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {language === "vi"
-                            ? "Nhận thông báo về gợi ý mới"
-                            : "Receive notifications about new recommendations"}
-                        </p>
+                    {/* Payment History in Settings */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <CreditCard size={20} className="text-orange-500" />
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                          {language === "vi" ? "Lịch sử thanh toán" : "Payment History"}
+                        </h3>
                       </div>
-                      <input 
-                        id="notifications" 
-                        type="checkbox" 
-                        defaultChecked 
-                        className="w-5 h-5 cursor-pointer" 
-                        aria-label="Enable notifications"
-                      />
+
+                      {loadingPayments ? (
+                        <p className="text-gray-600 dark:text-gray-400">{language === "vi" ? "Đang tải lịch sử..." : "Loading history..."}</p>
+                      ) : paymentHistory.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-sm">
+                            <thead>
+                              <tr className="text-left border-b border-gray-200 dark:border-gray-700">
+                                <th className="py-3 pr-4">OrderCode</th>
+                                <th className="py-3 pr-4">{language === "vi" ? "Số tiền" : "Amount"}</th>
+                                <th className="py-3 pr-4">{language === "vi" ? "Mô tả" : "Description"}</th>
+                                <th className="py-3 pr-4">{language === "vi" ? "Trạng thái" : "Status"}</th>
+                                <th className="py-3">{language === "vi" ? "Tạo lúc" : "Created"}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {paymentHistory.map((p) => (
+                                <tr key={p.paymentId} className="border-b border-gray-100 dark:border-gray-800">
+                                  <td className="py-3 pr-4 font-mono">{p.orderCode}</td>
+                                  <td className="py-3 pr-4 text-orange-600 dark:text-orange-400 font-semibold">{p.amount.toLocaleString("vi-VN")} ₫</td>
+                                  <td className="py-3 pr-4">{p.description}</td>
+                                  <td className="py-3 pr-4">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                      p.status === "PAID"
+                                        ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"
+                                        : p.status === "PENDING"
+                                        ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300"
+                                        : "bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300"
+                                    }`}>
+                                      {p.status}
+                                    </span>
+                                  </td>
+                                  <td className="py-3">{new Date(p.createdAt).toLocaleString("vi-VN")}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-gray-600 dark:text-gray-400">{language === "vi" ? "Chưa có giao dịch nào" : "No payments yet"}</p>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
+              
             </div>
           </div>
         </div>

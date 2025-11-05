@@ -33,6 +33,10 @@ export function Header() {
             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-orange-600 group-hover:w-full transition-all duration-300"></span>
           </Link>
           <Link href="/menu" className="text-gray-700 hover:text-orange-600 transition-colors-smooth relative group text-lg font-medium py-2">
+            {t("nav.menu")}
+            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-orange-600 group-hover:w-full transition-all duration-300"></span>
+          </Link>
+          <Link href="/favorites" className="text-gray-700 hover:text-orange-600 transition-colors-smooth relative group text-lg font-medium py-2">
             {t("nav.favorites")}
             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-orange-600 group-hover:w-full transition-all duration-300"></span>
           </Link>
@@ -94,6 +98,9 @@ export function Header() {
             {t("nav.home")}
           </Link>
           <Link href="/menu" className="block text-gray-700 hover:text-orange-600 py-2 transition-colors-smooth">
+            {t("nav.menu")}
+          </Link>
+          <Link href="/favorites" className="block text-gray-700 hover:text-orange-600 py-2 transition-colors-smooth">
             {t("nav.favorites")}
           </Link>
           <Link href="/about" className="block text-gray-700 hover:text-orange-600 py-2 transition-colors-smooth">
