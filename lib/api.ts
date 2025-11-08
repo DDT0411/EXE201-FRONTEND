@@ -928,7 +928,27 @@ export async function getFoodSuggestion(radiusKm?: number, token?: string): Prom
     const data = await response.json()
 
     if (response.ok) {
-      return data as FoodSuggestion
+      // Normalize API response: some backends return { suggestions: [...] }
+      // while older implementations returned a single FoodSuggestion object.
+      // If suggestions array exists, map first item to FoodSuggestion shape.
+      if (data && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+        const s = data.suggestions[0]
+        return {
+          suggestion: s.dishName || s.suggestion || "",
+          restaurantImg: s.restaurantImg || "",
+          resName: s.resName || s.restaurantName || "",
+          resAddress: s.resAddress || s.restaurantAddress || "",
+          distanceDisplay: s.distanceDisplay || null,
+        } as FoodSuggestion
+      }
+
+      // If API returned a single object matching our shape, return it directly
+      if (data && (data.suggestion || data.restaurantImg || data.resName)) {
+        return data as FoodSuggestion
+      }
+
+      // Unknown shape
+      throw new Error("Failed to get food suggestion: unexpected response shape")
     } else {
       throw new Error(data.message || "Failed to get food suggestion")
     }
