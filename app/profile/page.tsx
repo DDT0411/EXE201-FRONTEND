@@ -10,7 +10,7 @@ import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
 import { languages } from "@/lib/i18n"
 import { useAuth } from "@/hooks/use-auth"
-import { getUserProfile, updateUserProfile, logoutUser, changePassword, UserProfile, ChangePasswordParams, getPaymentHistory, PaymentHistoryItem } from "@/lib/api"
+import { getUserProfile, updateUserProfile, logoutUser, changePassword, UserProfile, ChangePasswordParams, getPaymentHistory, PaymentHistoryItem, getPremiumStatus, getFavorites, Favorite } from "@/lib/api"
 import { toast } from "@/lib/toast"
 
 function ProfileContent() {
@@ -24,8 +24,11 @@ function ProfileContent() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingPersonalization, setIsLoadingPersonalization] = useState(false)
+  const [isPremium, setIsPremium] = useState(false)
+  const [isCheckingPremium, setIsCheckingPremium] = useState(true)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [isFetching, setIsFetching] = useState(true)
+  const [favorites, setFavorites] = useState<Favorite[]>([])
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
@@ -109,6 +112,44 @@ function ProfileContent() {
     }
     fetchPayments()
   }, [token])
+
+  // Check premium status
+  useEffect(() => {
+    const check = async () => {
+      if (!token) {
+        setIsPremium(false)
+        setIsCheckingPremium(false)
+        return
+      }
+      try {
+        const status = await getPremiumStatus(token)
+        setIsPremium(!!status?.hasPremium)
+      } catch (err) {
+        console.error("Failed to check premium status:", err)
+        setIsPremium(false)
+      } finally {
+        setIsCheckingPremium(false)
+      }
+    }
+    check()
+  }, [token])
+
+  // Fetch favorites when token available
+  useEffect(() => {
+    const fetchFavs = async () => {
+      if (!token) return
+      try {
+        const res = await getFavorites(token)
+        setFavorites(res || [])
+      } catch (err) {
+        console.error("Failed to fetch favorites:", err)
+        setFavorites([])
+      }
+    }
+
+    // fetch on load and when user switches to favorites tab
+    if (activeTab === "favorites") fetchFavs()
+  }, [token, activeTab])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -606,62 +647,69 @@ function ProfileContent() {
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
                     {language === "vi" ? "Cá nhân hóa" : "Personalization"}
                   </h2>
-                  
-                  {/* Premium Check */}
-                  <div className="text-center py-12">
-                    <div className="mb-6">
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        className="h-20 w-20 text-orange-500 mx-auto mb-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-                      </svg>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                        {language === "vi" 
-                          ? "Tính năng dành cho người dùng Premium" 
-                          : "Premium Feature"}
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        {language === "vi"
-                          ? "Bạn cần nâng cấp tài khoản Premium để sử dụng tính năng cá nhân hóa"
-                          : "You need to upgrade to Premium to use personalization features"}
-                      </p>
+
+                  {/* If user is premium, show the personalization form, otherwise show upgrade CTA */}
+                  {!isCheckingPremium && isPremium ? (
+                    <form onSubmit={handleSubmitPersonalization} className="space-y-6">
+                      <div>
+                        <label htmlFor="preference" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{language === "vi" ? "Sở thích" : "Preference"}</label>
+                        <input id="preference" name="preference" value={formData.preference} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                      </div>
+                      <div>
+                        <label htmlFor="dislike" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{language === "vi" ? "Không thích" : "Dislike"}</label>
+                        <input id="dislike" name="dislike" value={formData.dislike} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                      </div>
+                      <div>
+                        <label htmlFor="allergy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{language === "vi" ? "Dị ứng" : "Allergy"}</label>
+                        <input id="allergy" name="allergy" value={formData.allergy} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                      </div>
+                      <div>
+                        <label htmlFor="diet" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{language === "vi" ? "Chế độ ăn" : "Diet"}</label>
+                        <input id="diet" name="diet" value={formData.diet} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                      </div>
+
+                      <button type="submit" disabled={isLoadingPersonalization} className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-smooth font-semibold">
+                        {isLoadingPersonalization ? (language === "vi" ? "Đang lưu..." : "Saving...") : (language === "vi" ? "Lưu" : "Save")}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 text-orange-500 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                        </svg>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{language === "vi" ? "Tính năng dành cho người dùng Premium" : "Premium Feature"}</h3>
+                        <p className="text-gray-600 dark:text-gray-400">{language === "vi" ? "Bạn cần nâng cấp tài khoản Premium để sử dụng tính năng cá nhân hóa" : "You need to upgrade to Premium to use personalization features"}</p>
+                      </div>
+                      <Link href="/choose-plan" className="inline-block px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-smooth font-semibold">{language === "vi" ? "Nâng cấp Premium" : "Upgrade to Premium"}</Link>
                     </div>
-                    
-                    <Link
-                      href="/choose-plan"
-                      className="inline-block px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-smooth font-semibold hover:shadow-lg hover:scale-105"
-                    >
-                      {language === "vi" ? "Nâng cấp Premium" : "Upgrade to Premium"}
-                    </Link>
-                  </div>
+                  )}
                 </div>
               )}
 
               {/* Favorites Tab */}
               {activeTab === "favorites" && (
                 <div className="bg-white dark:bg-slate-800 rounded-lg p-8 animate-fadeInUp">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-                    {language === "vi" ? "Món ăn yêu thích" : "Favorite Foods"}
-                  </h2>
-                  <div className="text-center py-12">
-                    <Heart size={48} className="mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {language === "vi"
-                        ? "Bạn chưa lưu món ăn yêu thích nào"
-                        : "You haven't saved any favorite foods yet"}
-                    </p>
-                    <Link
-                      href="/menu"
-                      className="inline-block mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-smooth font-semibold hover:shadow-lg hover:scale-105"
-                    >
-                      {t("home.exploreMenu")}
-                    </Link>
-                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{language === "vi" ? "Món ăn yêu thích" : "Favorite Foods"}</h2>
+
+                  {favorites.length > 0 ? (
+                    <div className="space-y-4">
+                      {favorites.map((f) => (
+                        <div key={f.id} className="p-4 border rounded-lg flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-gray-900 dark:text-white">{f.dishName}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{f.restaurantName}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Heart size={48} className="mx-auto text-gray-400 mb-4" />
+                      <p className="text-gray-600 dark:text-gray-400">{language === "vi" ? "Bạn chưa lưu món ăn yêu thích nào" : "You haven't saved any favorite foods yet"}</p>
+                      <Link href="/menu" className="inline-block mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-smooth font-semibold">{t("home.exploreMenu")}</Link>
+                    </div>
+                  )}
                 </div>
               )}
 
