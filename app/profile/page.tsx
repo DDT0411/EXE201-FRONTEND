@@ -29,6 +29,7 @@ function ProfileContent() {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
+  const [showPasswordChange, setShowPasswordChange] = useState(false)
 
   const [formData, setFormData] = useState({
     userName: "",
@@ -150,12 +151,13 @@ function ProfileContent() {
         language === "vi" ? "Đổi mật khẩu thành công!" : "Password changed successfully!"
       )
       
-      // Clear password form
+      // Clear password form and close
       setPasswordData({
         oldPassword: "",
         newPassword: "",
         confirmPassword: "",
       })
+      setShowPasswordChange(false)
     } catch (error) {
       if (error instanceof Error) {
         toast.error(error.message)
@@ -512,71 +514,88 @@ function ProfileContent() {
                     </button>
                   </form>
 
-                  {/* Change Password Section */}
+                  {/* Change Password Section - Collapsible */}
                   <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                      {language === "vi" ? "Đổi mật khẩu" : "Change Password"}
-                    </h3>
-                    <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
-                      <div>
-                        <label htmlFor="oldPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {language === "vi" ? "Mật khẩu cũ" : "Old Password"}
-                        </label>
-                        <input
-                          id="oldPassword"
-                          name="oldPassword"
-                          type="password"
-                          value={passwordData.oldPassword}
-                          onChange={handlePasswordChange}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {language === "vi" ? "Mật khẩu mới" : "New Password"}
-                        </label>
-                        <input
-                          id="newPassword"
-                          name="newPassword"
-                          type="password"
-                          value={passwordData.newPassword}
-                          onChange={handlePasswordChange}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {language === "vi" ? "Xác nhận mật khẩu mới" : "Confirm New Password"}
-                        </label>
-                        <input
-                          id="confirmPassword"
-                          name="confirmPassword"
-                          type="password"
-                          value={passwordData.confirmPassword}
-                          onChange={handlePasswordChange}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
-                          required
-                        />
-                      </div>
-
-                      <button 
-                        type="submit"
-                        disabled={isChangingPassword}
-                        className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-smooth font-semibold hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordChange(!showPasswordChange)}
+                      className="w-full flex items-center justify-between text-xl font-bold text-gray-900 dark:text-white mb-4 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                    >
+                      <span>{language === "vi" ? "Đổi mật khẩu" : "Change Password"}</span>
+                      <svg
+                        className={`w-5 h-5 transition-transform ${showPasswordChange ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        {isChangingPassword
-                          ? language === "vi"
-                            ? "Đang đổi mật khẩu..."
-                            : "Changing..."
-                          : language === "vi"
-                          ? "Đổi mật khẩu"
-                          : "Change Password"}
-                      </button>
-                    </form>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {showPasswordChange && (
+                      <div className="mt-4 animate-fadeInUp">
+                        <form onSubmit={handleChangePasswordSubmit} className="space-y-4 bg-gray-50 dark:bg-slate-900 rounded-lg p-6">
+                          <div>
+                            <label htmlFor="oldPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              {language === "vi" ? "Mật khẩu cũ" : "Old Password"}
+                            </label>
+                            <input
+                              id="oldPassword"
+                              name="oldPassword"
+                              type="password"
+                              value={passwordData.oldPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              {language === "vi" ? "Mật khẩu mới" : "New Password"}
+                            </label>
+                            <input
+                              id="newPassword"
+                              name="newPassword"
+                              type="password"
+                              value={passwordData.newPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              {language === "vi" ? "Xác nhận mật khẩu mới" : "Confirm New Password"}
+                            </label>
+                            <input
+                              id="confirmPassword"
+                              name="confirmPassword"
+                              type="password"
+                              value={passwordData.confirmPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
+                              required
+                            />
+                          </div>
+
+                          <button 
+                            type="submit"
+                            disabled={isChangingPassword}
+                            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-smooth font-semibold hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isChangingPassword
+                              ? language === "vi"
+                                ? "Đang đổi mật khẩu..."
+                                : "Changing..."
+                              : language === "vi"
+                              ? "Đổi mật khẩu"
+                              : "Change Password"}
+                          </button>
+                        </form>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -587,91 +606,39 @@ function ProfileContent() {
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
                     {language === "vi" ? "Cá nhân hóa" : "Personalization"}
                   </h2>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    {language === "vi" 
-                      ? "Tùy chỉnh sở thích của bạn để nhận được gợi ý món ăn phù hợp nhất" 
-                      : "Customize your preferences to receive the most suitable food recommendations"}
-                  </p>
-
-                  <form onSubmit={handleSubmitPersonalization} className="space-y-6">
-                    <div>
-                      <label htmlFor="preference" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {language === "vi" ? "Món ăn yêu thích" : "Food Preference"}
-                      </label>
-                      <textarea
-                        id="preference"
-                        name="preference"
-                        value={formData.preference}
-                        onChange={handleChange}
-                        rows={4}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
-                        placeholder={language === "vi" ? "Nhập món ăn yêu thích của bạn..." : "Enter your favorite foods..."}
-                      />
+                  
+                  {/* Premium Check */}
+                  <div className="text-center py-12">
+                    <div className="mb-6">
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-20 w-20 text-orange-500 mx-auto mb-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                      </svg>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                        {language === "vi" 
+                          ? "Tính năng dành cho người dùng Premium" 
+                          : "Premium Feature"}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        {language === "vi"
+                          ? "Bạn cần nâng cấp tài khoản Premium để sử dụng tính năng cá nhân hóa"
+                          : "You need to upgrade to Premium to use personalization features"}
+                      </p>
                     </div>
-
-                    <div>
-                      <label htmlFor="dislike" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {language === "vi" ? "Không thích" : "Dislike"}
-                      </label>
-                      <textarea
-                        id="dislike"
-                        name="dislike"
-                        value={formData.dislike}
-                        onChange={handleChange}
-                        rows={4}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
-                        placeholder={language === "vi" ? "Nhập món ăn bạn không thích..." : "Enter foods you don't like..."}
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="allergy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {language === "vi" ? "Dị ứng" : "Allergy"}
-                      </label>
-                      <textarea
-                        id="allergy"
-                        name="allergy"
-                        value={formData.allergy}
-                        onChange={handleChange}
-                        rows={4}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
-                        placeholder={language === "vi" ? "Nhập thông tin dị ứng của bạn..." : "Enter your allergy information..."}
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="diet" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {language === "vi" ? "Chế độ ăn" : "Diet"}
-                      </label>
-                      <textarea
-                        id="diet"
-                        name="diet"
-                        value={formData.diet}
-                        onChange={handleChange}
-                        rows={4}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
-                        placeholder={
-                          language === "vi"
-                            ? "Nhập chế độ ăn của bạn (ví dụ: chay, keto, low-carb)..."
-                            : "Enter your diet (e.g., vegetarian, keto, low-carb)..."
-                        }
-                      />
-                    </div>
-
-                    <button 
-                      type="submit"
-                      disabled={isLoadingPersonalization}
-                      className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-smooth font-semibold hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    
+                    <Link
+                      href="/choose-plan"
+                      className="inline-block px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-smooth font-semibold hover:shadow-lg hover:scale-105"
                     >
-                      {isLoadingPersonalization
-                        ? language === "vi"
-                          ? "Đang lưu..."
-                          : "Saving..."
-                        : language === "vi"
-                        ? "Lưu thay đổi"
-                        : "Save Changes"}
-                    </button>
-                  </form>
+                      {language === "vi" ? "Nâng cấp Premium" : "Upgrade to Premium"}
+                    </Link>
+                  </div>
                 </div>
               )}
 

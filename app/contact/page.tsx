@@ -71,8 +71,8 @@ export default function ContactPage() {
                     </div>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t("contact.email")}</h3>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400">support@eatit.com</p>
-                  <p className="text-gray-600 dark:text-gray-400">info@eatit.com</p>
+                  <p className="text-gray-600 dark:text-gray-400">theddse183048@fpt.edu.vn</p>
+                  <p className="text-gray-600 dark:text-gray-400">chegiahuy0640@gmail.com</p>
                 </div>
               </ScrollReveal>
 
@@ -85,8 +85,8 @@ export default function ContactPage() {
                     </div>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t("contact.phone")}</h3>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400">+84 (0) 123 456 789</p>
-                  <p className="text-gray-600 dark:text-gray-400">+84 (0) 987 654 321</p>
+                  <p className="text-gray-600 dark:text-gray-400">0918314040</p>
+                  <p className="text-gray-600 dark:text-gray-400">0382727683</p>
                 </div>
               </ScrollReveal>
 
@@ -99,7 +99,7 @@ export default function ContactPage() {
                     </div>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t("contact.address")}</h3>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400">123 Phố Cổ, Hà Nội, Việt Nam</p>
+                  <p className="text-gray-600 dark:text-gray-400">7 Đ. D1, Long Thạnh Mỹ, Thủ Đức, Thành phố Hồ Chí Minh 700000</p>
                 </div>
               </ScrollReveal>
 

@@ -1,12 +1,21 @@
 "use client"
 
-import { useJsApiLoader, GoogleMap, Marker } from "@react-google-maps/api"
+import InteractiveMap, { Marker } from '@goongmaps/goong-map-react'
 import { MapPin } from "lucide-react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
+import '@goongmaps/goong-js/dist/goong-js.css'
+
+interface ViewState {
+  longitude: number
+  latitude: number
+  zoom: number
+  bearing?: number
+  pitch?: number
+}
 
 const defaultCenter = {
-  lat: 10.8231, // Ho Chi Minh City coordinates as default
-  lng: 106.6297,
+  latitude: 10.8231, // Ho Chi Minh City coordinates as default
+  longitude: 106.6297,
 }
 
 const defaultZoom = 15
@@ -18,39 +27,91 @@ interface RestaurantMapProps {
   restaurantAddress?: string
 }
 
-const mapContainerStyle = {
-  width: "100%",
-  height: "100%",
-}
-
 export function RestaurantMap({ latitude, longitude, restaurantName, restaurantAddress }: RestaurantMapProps) {
-  const [map, setMap] = useState<google.maps.Map | null>(null)
-
-  // Using provided Google Maps API key
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+  const apiKey = process.env.NEXT_PUBLIC_GOONG_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOONG_MAPS_KEY || ""
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
+  const [isMounted, setIsMounted] = useState(false)
   
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: apiKey,
+  const [viewState, setViewState] = useState<ViewState>({
+    latitude: latitude || defaultCenter.latitude,
+    longitude: longitude || defaultCenter.longitude,
+    zoom: defaultZoom,
+    bearing: 0,
+    pitch: 0,
   })
 
-  const center = latitude && longitude ? { lat: latitude, lng: longitude } : defaultCenter
+  // Update viewState when latitude/longitude change
+  useEffect(() => {
+    if (latitude && longitude) {
+      setViewState(prev => ({
+        ...prev,
+        latitude,
+        longitude,
+      }))
+    }
+  }, [latitude, longitude])
 
-  const onLoad = useCallback((map: google.maps.Map) => {
-    setMap(map)
+  // Update dimensions when container size changes
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        const width = rect.width || 800
+        const height = rect.height || 600
+        if (width > 0 && height > 0) {
+          setDimensions({ width, height })
+          setIsMounted(true)
+        }
+      }
+    }
+
+    // Initial update
+    updateDimensions()
+    
+    // Use setTimeout to ensure DOM is ready
+    const timeoutId = setTimeout(updateDimensions, 0)
+    
+    const resizeObserver = new ResizeObserver(updateDimensions)
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current)
+    }
+
+    return () => {
+      clearTimeout(timeoutId)
+      resizeObserver.disconnect()
+    }
   }, [])
 
-  const onUnmount = useCallback(() => {
-    setMap(null)
+  const onViewStateChange = useCallback((evt: { viewState: ViewState }) => {
+    setViewState(evt.viewState)
   }, [])
 
-  if (loadError || !apiKey) {
+  const getCursor = useCallback(({ isDragging, isHovering }: { isDragging: boolean; isHovering: boolean }) => {
+    if (isDragging) return "grabbing"
+    if (isHovering) return "pointer"
+    return "grab"
+  }, [])
+
+  const onResize = useCallback(() => {
+    if (containerRef.current) {
+      const { width, height } = containerRef.current.getBoundingClientRect()
+      setDimensions({ width, height })
+    }
+  }, [])
+
+  // Transition callbacks to prevent errors
+  const onTransitionStart = useCallback(() => {}, [])
+  const onTransitionInterrupt = useCallback(() => {}, [])
+  const onTransitionEnd = useCallback(() => {}, [])
+
+  if (!apiKey) {
     return (
       <div className="w-full h-full bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
         <div className="text-center p-4">
           <MapPin className="mx-auto mb-2 text-gray-400" size={32} />
           <p className="text-gray-600 dark:text-gray-400 text-sm">
-            {!apiKey ? "Google Maps API key chưa được cấu hình" : "Không thể tải bản đồ"}
+            Goong Maps API key chưa được cấu hình
           </p>
           {(restaurantName || restaurantAddress) && (
             <div className="mt-4 text-left bg-white dark:bg-slate-800 rounded-lg p-3">
@@ -67,49 +128,46 @@ export function RestaurantMap({ latitude, longitude, restaurantName, restaurantA
     )
   }
 
-  if (!isLoaded) {
+  // Don't render map until dimensions are calculated
+  if (!isMounted || dimensions.width === 0 || dimensions.height === 0) {
     return (
-      <div className="w-full h-full bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+      <div ref={containerRef} className="w-full h-full relative rounded-lg overflow-hidden shadow-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400">
-            <div className="w-6 h-6 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
-            Đang tải bản đồ...
-          </div>
+          <MapPin className="mx-auto mb-2 text-gray-400 animate-pulse" size={32} />
+          <p className="text-gray-600 dark:text-gray-400 text-sm">Đang tải bản đồ...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="w-full h-full relative rounded-lg overflow-hidden shadow-lg">
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={center}
-        zoom={defaultZoom}
-        onLoad={onLoad}
-        onUnmount={onUnmount}
-        options={{
-          disableDefaultUI: false,
-          zoomControl: true,
-          streetViewControl: false,
-          mapTypeControl: false,
-          fullscreenControl: true,
-          styles: [
-            {
-              featureType: "poi",
-              elementType: "labels",
-              stylers: [{ visibility: "on" }],
-            },
-          ],
-        }}
+    <div ref={containerRef} className="w-full h-full relative rounded-lg overflow-hidden shadow-lg">
+      <InteractiveMap
+        {...viewState}
+        onViewStateChange={onViewStateChange}
+        getCursor={getCursor}
+        onResize={onResize}
+        onTransitionStart={onTransitionStart}
+        onTransitionInterrupt={onTransitionInterrupt}
+        onTransitionEnd={onTransitionEnd}
+        width={dimensions.width}
+        height={dimensions.height}
+        mapStyle="https://tiles.goong.io/assets/goong_map_web.json"
+        goongApiAccessToken={apiKey}
+        touchAction="none"
       >
         {(latitude && longitude) && (
           <Marker
-            position={{ lat: latitude, lng: longitude }}
-            title={restaurantName || "Vị trí quán ăn"}
-          />
+            longitude={longitude}
+            latitude={latitude}
+            anchor="bottom"
+          >
+            <div className="relative">
+              <MapPin className="text-orange-600 dark:text-orange-400" size={32} fill="currentColor" />
+            </div>
+          </Marker>
         )}
-      </GoogleMap>
+      </InteractiveMap>
       
       {/* Map info overlay */}
       {(restaurantName || restaurantAddress) && (

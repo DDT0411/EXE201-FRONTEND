@@ -38,6 +38,12 @@ export function useAuth() {
     setUser(newUser)
     localStorage.setItem("auth_token", newToken)
     localStorage.setItem("auth_user", JSON.stringify(newUser))
+    // Check if this is first login (no onboarding_completed flag)
+    const hasCompletedOnboarding = localStorage.getItem(`onboarding_completed_${newUser.userId}`)
+    if (!hasCompletedOnboarding) {
+      // First login, will show onboarding
+      localStorage.setItem(`onboarding_completed_${newUser.userId}`, "false")
+    }
   }
 
   const logout = () => {

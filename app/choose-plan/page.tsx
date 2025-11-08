@@ -17,13 +17,17 @@ export default function ChoosePlanPage() {
   const t = (key: string) => getTranslation(language, key)
   const router = useRouter()
   const [selectedPlan, setSelectedPlan] = useState<"free" | "premium">("free")
-  const { token, isAuthenticated } = useAuth()
+  const { token, isAuthenticated, user } = useAuth()
   const [isProcessing, setIsProcessing] = useState(false)
 
   const handleContinue = async () => {
     if (selectedPlan === "free") {
+      // Mark plan as selected
+      if (user?.userId) {
+        localStorage.setItem(`plan_selected_${user.userId}`, "true")
+      }
       toast.success(language === "vi" ? "Chọn gói Miễn phí thành công!" : "Free plan selected successfully!")
-      router.push("/profile")
+      router.push("/")
       return
     }
 
@@ -35,11 +39,15 @@ export default function ChoosePlanPage() {
 
     try {
       setIsProcessing(true)
-      const origin = typeof window !== "undefined" ? window.location.origin : ""
+      // Mark plan as selected when user clicks premium (even before payment)
+      if (user?.userId) {
+        localStorage.setItem(`plan_selected_${user.userId}`, "true")
+      }
+      
       const checkout = await createPremiumPayment(
         {
-          ReturnUrl: `${origin}/payment/success`,
-          CancelUrl: `${origin}/choose-plan`,
+          ReturnUrl: `https://eatit-two.vercel.app/payment/success`,
+          CancelUrl: `https://eatit-two.vercel.app/choose-plan`,
         },
         token
       )

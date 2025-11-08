@@ -1,36 +1,117 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { ScrollReveal } from "@/components/scroll-reveal"
-import { Sparkles, RotateCw, MapPin } from "lucide-react"
+import { Sparkles, RotateCw, MapPin, Lock } from "lucide-react"
 import Link from "next/link"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
-import { getFoodSuggestion, FoodSuggestion } from "@/lib/api"
+import { getFoodSuggestion, FoodSuggestion, getPremiumStatus } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
+import { toast } from "@/lib/toast"
 
 export default function SurprisePage() {
   const { language } = useLanguage()
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const t = (key: string) => getTranslation(language, key)
   const [hasClicked, setHasClicked] = useState(false)
   const [recommendedFood, setRecommendedFood] = useState<FoodSuggestion | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [radiusKm, setRadiusKm] = useState(20)
+  const [isPremium, setIsPremium] = useState(false)
+  const [dailyUsage, setDailyUsage] = useState(0)
+  const [checkingPremium, setCheckingPremium] = useState(true)
+
+  // Check premium status on mount
+  useEffect(() => {
+    const checkPremium = async () => {
+      if (!token) {
+        setCheckingPremium(false)
+        return
+      }
+      try {
+        const status = await getPremiumStatus(token)
+        setIsPremium(status.hasPremium)
+      } catch (err) {
+        console.error("Failed to check premium status:", err)
+        setIsPremium(false)
+      } finally {
+        setCheckingPremium(false)
+      }
+    }
+    checkPremium()
+  }, [token])
+
+  // Load daily usage from localStorage
+  useEffect(() => {
+    if (user?.userId) {
+      const today = new Date().toDateString()
+      const stored = localStorage.getItem(`ai_usage_${user.userId}_${today}`)
+      if (stored) {
+        setDailyUsage(parseInt(stored, 10))
+      }
+    }
+  }, [user])
 
   const handleRecommendation = async () => {
+    if (!token) {
+      toast.error(language === "vi" ? "Vui lòng đăng nhập để sử dụng tính năng này" : "Please login to use this feature")
+      return
+    }
+
+    // Check daily limit for free users
+    if (!isPremium) {
+      const today = new Date().toDateString()
+      const stored = localStorage.getItem(`ai_usage_${user?.userId}_${today}`)
+      const usage = stored ? parseInt(stored, 10) : 0
+      
+      if (usage >= 2) {
+        toast.error(
+          language === "vi" 
+            ? "Bạn đã sử dụng hết 2 lần miễn phí hôm nay. Vui lòng nâng cấp lên Premium để sử dụng không giới hạn!"
+            : "You've used all 2 free uses today. Please upgrade to Premium for unlimited access!"
+        )
+        return
+      }
+    }
+
     setIsLoading(true)
     setHasClicked(true)
     setError(null)
 
     try {
-      const suggestion = await getFoodSuggestion(token || undefined)
+      const suggestion = await getFoodSuggestion(radiusKm, token)
       setRecommendedFood(suggestion)
+      
+      // Update daily usage for free users
+      if (!isPremium && user?.userId) {
+        const today = new Date().toDateString()
+        const stored = localStorage.getItem(`ai_usage_${user.userId}_${today}`)
+        const usage = stored ? parseInt(stored, 10) : 0
+        const newUsage = usage + 1
+        localStorage.setItem(`ai_usage_${user.userId}_${today}`, newUsage.toString())
+        setDailyUsage(newUsage)
+        
+        if (newUsage === 2) {
+          toast.info(
+            language === "vi"
+              ? "Bạn đã sử dụng hết lượt miễn phí hôm nay. Nâng cấp Premium để sử dụng không giới hạn!"
+              : "You've used all free uses today. Upgrade to Premium for unlimited access!"
+          )
+        }
+      }
     } catch (err) {
       console.error("Failed to get food suggestion:", err)
-      setError("Không thể lấy gợi ý. Vui lòng thử lại sau.")
+      if (err instanceof Error) {
+        setError(err.message)
+        toast.error(err.message)
+      } else {
+        setError(language === "vi" ? "Không thể lấy gợi ý. Vui lòng thử lại sau." : "Failed to get suggestion. Please try again later.")
+        toast.error(language === "vi" ? "Không thể lấy gợi ý. Vui lòng thử lại sau." : "Failed to get suggestion. Please try again later.")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -156,17 +237,65 @@ export default function SurprisePage() {
             </div>
           </ScrollReveal>
 
+          {/* Radius Input and Usage Info */}
+          {!hasClicked && (
+            <ScrollReveal direction="up" delay={300} className="mb-6">
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg max-w-md mx-auto">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {language === "vi" ? "Bán kính tìm kiếm (km)" : "Search Radius (km)"}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={radiusKm}
+                  onChange={(e) => setRadiusKm(parseInt(e.target.value, 10) || 20)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
+                />
+                
+                {!checkingPremium && (
+                  <div className="mt-4 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+                    {isPremium ? (
+                      <p className="text-sm text-orange-800 dark:text-orange-200">
+                        {language === "vi" 
+                          ? "✨ Bạn đang sử dụng gói Premium - Không giới hạn!" 
+                          : "✨ You're using Premium - Unlimited!"}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-orange-800 dark:text-orange-200">
+                        {language === "vi" 
+                          ? `📊 Đã dùng ${dailyUsage}/2 lần miễn phí hôm nay` 
+                          : `📊 Used ${dailyUsage}/2 free uses today`}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </ScrollReveal>
+          )}
+
           {/* Action Button - Chốt và Chill */}
           {!hasClicked && (
             <ScrollReveal direction="up" delay={400} className="text-center">
               <button
                 onClick={handleRecommendation}
-                className="group relative px-12 sm:px-16 md:px-20 py-4 sm:py-5 md:py-6 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-full font-bold text-lg sm:text-xl md:text-2xl shadow-2xl hover:shadow-orange-500/50 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden"
+                disabled={isLoading || checkingPremium || (!isPremium && dailyUsage >= 2)}
+                className="group relative px-12 sm:px-16 md:px-20 py-4 sm:py-5 md:py-6 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-full font-bold text-lg sm:text-xl md:text-2xl shadow-2xl hover:shadow-orange-500/50 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <span className="relative z-10 flex items-center justify-center gap-3">
-                  <Sparkles className="animate-pulse" size={28} />
-                  {t("surprise.buttonText")}
-                  <Sparkles className="animate-pulse" size={28} />
+                  {!isPremium && dailyUsage >= 2 ? (
+                    <>
+                      <Lock size={28} />
+                      {language === "vi" ? "Đã hết lượt - Nâng cấp Premium" : "Limit reached - Upgrade to Premium"}
+                      <Lock size={28} />
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="animate-pulse" size={28} />
+                      {t("surprise.buttonText")}
+                      <Sparkles className="animate-pulse" size={28} />
+                    </>
+                  )}
                 </span>
                 {/* Shimmer Effect */}
                 <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
@@ -174,13 +303,17 @@ export default function SurprisePage() {
             </ScrollReveal>
           )}
 
-          {/* Premium Info Box */}
-          {hasClicked && recommendedFood && (
+          {/* Premium Info Box - Only show for non-premium users */}
+          {hasClicked && recommendedFood && !isPremium && (
             <ScrollReveal direction="up" delay={300} className="mt-8">
               <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 text-center">
-                <p className="text-blue-900 dark:text-blue-100 mb-4">{t("surprise.premiumMessage")}</p>
+                <p className="text-blue-900 dark:text-blue-100 mb-4">
+                  {language === "vi" 
+                    ? "Nâng cấp lên Premium để sử dụng tính năng này không giới hạn mỗi ngày!" 
+                    : "Upgrade to Premium to use this feature unlimited times per day!"}
+                </p>
                 <Link
-                  href="/premium"
+                  href="/choose-plan"
                   className="inline-block px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition font-semibold shadow-lg hover:shadow-xl hover:scale-105"
                 >
                   {t("surprise.upgradePremium")}

@@ -31,9 +31,35 @@ export default function AboutPage() {
           <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed mb-6">
             {t("about.story1")}
           </p>
-          <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
+          <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed mb-8">
             {t("about.story2")}
           </p>
+          
+          {/* Contact Information */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-lg mt-8">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Thông tin liên hệ</h3>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Email</h4>
+                <p className="text-gray-600 dark:text-gray-400">theddse183048@fpt.edu.vn</p>
+                <p className="text-gray-600 dark:text-gray-400">chegiahuy0640@gmail.com</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Số điện thoại</h4>
+                <p className="text-gray-600 dark:text-gray-400">0918314040</p>
+                <p className="text-gray-600 dark:text-gray-400">0382727683</p>
+              </div>
+              <div className="md:col-span-2">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Địa chỉ</h4>
+                <p className="text-gray-600 dark:text-gray-400">7 Đ. D1, Long Thạnh Mỹ, Thủ Đức, Thành phố Hồ Chí Minh 700000</p>
+              </div>
+              <div className="md:col-span-2">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Giờ làm việc</h4>
+                <p className="text-gray-600 dark:text-gray-400">Thứ 2 - Thứ 6: 9:00 - 18:00</p>
+                <p className="text-gray-600 dark:text-gray-400">Thứ 7 - Chủ nhật: 10:00 - 16:00</p>
+              </div>
+            </div>
+          </div>
         </ScrollReveal>
       </section>
 

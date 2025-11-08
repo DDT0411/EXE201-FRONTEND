@@ -829,15 +829,16 @@ export async function getRatings(id: number, token?: string): Promise<Rating[]> 
 }
 
 // Get restaurant ratings list - Using Next.js API route to avoid CORS
+// Note: Ratings are public, so we don't send token for GET requests
 export async function getRestaurantRatings(
   restaurantId: number,
   token?: string
 ): Promise<RatingsListResponse> {
   try {
+    // Ratings are public, don't send token for GET request
     const headers: HeadersInit = {
       Accept: "*/*",
     }
-    if (token) headers.Authorization = `Bearer ${token}`
 
     const response = await fetch(`/api/rating/restaurants/${restaurantId}/ratings`, {
       method: "GET",
@@ -848,13 +849,20 @@ export async function getRestaurantRatings(
     if (response.ok) {
       return data as RatingsListResponse
     } else {
+      // Return empty result instead of throwing for non-critical errors
+      if (response.status === 401 || response.status === 403) {
+        console.warn("Failed to fetch ratings, returning empty result")
+        return { result: [], totalIteams: 0 }
+      }
       throw new Error(data.message || "Failed to fetch restaurant ratings")
     }
   } catch (error) {
     if (error instanceof Error) {
-      throw error
+      // For network errors or other issues, return empty result
+      console.error("Error fetching restaurant ratings:", error)
+      return { result: [], totalIteams: 0 }
     }
-    throw new Error("Network error. Please check your connection.")
+    return { result: [], totalIteams: 0 }
   }
 }
 
@@ -898,10 +906,11 @@ export interface FoodSuggestion {
 }
 
 // Get food suggestion - Using Next.js API route to avoid CORS
-export async function getFoodSuggestion(token?: string): Promise<FoodSuggestion> {
+export async function getFoodSuggestion(radiusKm?: number, token?: string): Promise<FoodSuggestion> {
   try {
     const headers: HeadersInit = {
       Accept: "*/*",
+      "Content-Type": "application/json",
     }
 
     if (token) {
@@ -911,6 +920,9 @@ export async function getFoodSuggestion(token?: string): Promise<FoodSuggestion>
     const response = await fetch(`/api/foodsuggestion`, {
       method: "POST",
       headers,
+      body: JSON.stringify({
+        radiusKm: radiusKm || 20,
+      }),
     })
 
     const data = await response.json()

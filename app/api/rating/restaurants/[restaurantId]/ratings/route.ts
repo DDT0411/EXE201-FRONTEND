@@ -11,11 +11,11 @@ export async function GET(
   try {
     const { restaurantId } = await params
 
-    const authHeader = request.headers.get("authorization")
+    // Ratings are public, don't send auth header for GET requests
+    // This prevents 401 errors when token is invalid or expired
     const headers: HeadersInit = {
       Accept: "*/*",
     }
-    if (authHeader) headers.Authorization = authHeader
 
     const upstream = await fetch(
       `${API_BASE_URL}/Rating/restaurants/${restaurantId}/ratings`,

@@ -16,10 +16,18 @@ export async function POST(request: NextRequest) {
       headers.Authorization = authHeader
     }
 
+    // Get request body
+    const body = await request.json().catch(() => ({}))
+    const radiusKm = body.radiusKm || 20
+
     // Call external API
     const response = await fetch(`${API_BASE_URL}/FoodSuggestion`, {
       method: "POST",
-      headers,
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ radiusKm }),
     })
 
     // Check if response has content

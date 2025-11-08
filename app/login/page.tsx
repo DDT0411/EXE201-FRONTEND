@@ -44,8 +44,20 @@ export default function LoginPage() {
         language === "vi" ? "Đăng nhập thành công!" : "Login successful!"
       )
 
-      // Always redirect to onboarding for demo/testing (removed onboarding_completed check)
-      router.push("/onboarding")
+      // Check if user has completed onboarding
+      const hasCompletedOnboarding = localStorage.getItem(`onboarding_completed_${response.user.userId}`)
+      const hasSelectedPlan = localStorage.getItem(`plan_selected_${response.user.userId}`)
+      
+      if (hasCompletedOnboarding !== "true") {
+        // First time login, show onboarding
+        router.push("/onboarding")
+      } else if (hasSelectedPlan !== "true") {
+        // Onboarding done but plan not selected, show choose-plan
+        router.push("/choose-plan")
+      } else {
+        // Everything done, go to home
+        router.push("/")
+      }
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message)

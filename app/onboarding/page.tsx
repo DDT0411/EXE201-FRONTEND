@@ -7,6 +7,7 @@ import { ScrollReveal } from "@/components/scroll-reveal"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
 import { useAuth } from "@/hooks/use-auth"
+import { getPremiumStatus } from "@/lib/api"
 import { toast } from "@/lib/toast"
 
 export default function OnboardingPage() {
@@ -27,17 +28,46 @@ export default function OnboardingPage() {
 
   // Check if user needs onboarding (move redirect logic to useEffect)
   useEffect(() => {
-    if (authLoading) return
+    const checkAccess = async () => {
+      if (authLoading) return
+      
+      // Check if user is not logged in
+      if (!user || !token) {
+        router.push("/login")
+        return
+      }
 
-    // Check if user is not logged in
-    if (!user || !token) {
-      router.push("/login")
-      return
+      try {
+        // Check if user is premium
+        const premiumStatus = await getPremiumStatus(token)
+        if (!premiumStatus.hasPremium) {
+          toast.error(language === "vi" 
+            ? "Bạn cần nâng cấp tài khoản Premium để sử dụng tính năng này" 
+            : "You need to upgrade to Premium to use this feature")
+          router.push("/choose-plan")
+          return
+        }
+
+        // Check if user already filled preferences before
+        const hasFilledPrefs = localStorage.getItem(`preferences_completed_${user.userId}`)
+        if (hasFilledPrefs === "true") {
+          router.push("/")
+          return
+        }
+
+        setIsChecking(false)
+
+      } catch (error) {
+        console.error("Error checking access:", error)
+        toast.error(language === "vi"
+          ? "Có lỗi xảy ra. Vui lòng thử lại sau."
+          : "An error occurred. Please try again later.")
+        router.push("/")
+      }
     }
 
-    setIsChecking(false)
-    // Removed onboarding_completed check for demo/testing purposes
-  }, [user, token, authLoading, router])
+    checkAccess()
+  }, [user, token, authLoading, router, language])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
@@ -63,7 +93,10 @@ export default function OnboardingPage() {
       const hasData = formData.preference || formData.dislike || formData.allergy || formData.diet || formData.isVegetarian
       
       if (!hasData) {
-        // User skipped everything, just go to choose plan
+        // User skipped everything, mark onboarding as completed and go to choose plan
+        if (user?.userId) {
+          localStorage.setItem(`onboarding_completed_${user.userId}`, "true")
+        }
         router.push("/choose-plan")
         setIsLoading(false)
         return
@@ -89,7 +122,10 @@ export default function OnboardingPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Don't mark onboarding as completed yet - user still needs to choose plan
+        // Mark onboarding as completed
+        if (user?.userId) {
+          localStorage.setItem(`onboarding_completed_${user.userId}`, "true")
+        }
         toast.success(
           language === "vi"
             ? "Thông tin đã được lưu!"
