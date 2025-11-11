@@ -20,8 +20,21 @@ export function getCurrentLocation(): Promise<Location> {
           lng: position.coords.longitude,
         })
       },
-      (error) => {
-        reject(error)
+      (error: GeolocationPositionError) => {
+        // Convert GeolocationPositionError to a more descriptive Error
+        const errorMessages: Record<number, string> = {
+          1: "User denied geolocation permission",
+          2: "Position unavailable - could not determine location",
+          3: "Request timeout - location request took too long"
+        }
+        
+        const errorMessage = errorMessages[error.code] || error.message || "Failed to get location"
+        const finalError = new Error(errorMessage)
+        
+        // Preserve the original error code if needed
+        ;(finalError as any).code = error.code
+        
+        reject(finalError)
       },
       {
         enableHighAccuracy: true,

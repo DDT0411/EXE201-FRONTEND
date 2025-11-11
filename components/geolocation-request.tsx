@@ -43,20 +43,48 @@ export function GeolocationRequest() {
           console.warn("Failed to update user location on server")
         }
       } catch (error) {
-        // Log error for debugging
+        // Handle errors silently for common cases
         if (error instanceof Error) {
-          if (error.message.includes("denied") || error.message.includes("permission")) {
-            console.log("User denied geolocation permission")
-          } else if (error.message.includes("timeout")) {
-            console.warn("Geolocation request timed out")
+          const errorMessage = error.message.toLowerCase()
+          const errorCode = (error as any).code
+          
+          // Handle based on error code first (most reliable)
+          if (errorCode === 1) {
+            // Permission denied - this is expected, don't log as error
+            // Don't reset ref, so we don't keep retrying
+            return
+          } else if (errorCode === 2) {
+            // Position unavailable
+            console.warn("Geolocation: Position unavailable")
+            hasRequestedRef.current = false
+          } else if (errorCode === 3) {
+            // Timeout
+            console.warn("Geolocation: Request timed out")
+            hasRequestedRef.current = false
+          } else if (errorMessage.includes("denied") || errorMessage.includes("permission")) {
+            // User denied permission - this is expected
+            return
+          } else if (errorMessage.includes("timeout")) {
+            // Timeout - user might be in area with poor GPS signal
+            console.warn("Geolocation: Request timed out")
+            hasRequestedRef.current = false
+          } else if (errorMessage.includes("not available") || errorMessage.includes("not supported")) {
+            // Geolocation not available - device doesn't support it
+            console.warn("Geolocation: Not available on this device")
+            // Don't retry if not supported
+            return
+          } else if (errorMessage.trim() !== "") {
+            // Only log if there's an actual error message
+            console.warn("Geolocation error:", error.message)
+            hasRequestedRef.current = false
           } else {
-            console.error("Error getting user location:", error.message)
+            // Silent fail for empty errors
+            return
           }
         } else {
-          console.error("Error getting user location:", error)
+          // Silent fail for non-Error objects
+          return
         }
-        // Reset ref so we can retry later
-        hasRequestedRef.current = false
       }
     }
 
