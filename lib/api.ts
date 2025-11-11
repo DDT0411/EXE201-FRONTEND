@@ -995,6 +995,25 @@ export interface PaymentSuccessResponse {
   status: string
 }
 
+// Admin Payment types
+export interface Payment {
+  paymentId: number
+  userId: number
+  orderCode: number
+  amount: number
+  description: string
+  status: string
+  paymentType: string
+  premiumExpiryDate: string | null
+  createdAt: string
+  paidAt: string | null
+}
+
+export interface PaymentsResponse {
+  totalItems: number
+  payments: Payment[]
+}
+
 // Create premium payment - Using Next.js API route to avoid CORS
 export async function createPremiumPayment(
   params: { ReturnUrl?: string; CancelUrl?: string },
@@ -1045,9 +1064,106 @@ export async function getPremiumStatus(token: string): Promise<PremiumStatusResp
     })
     const data = await response.json()
     if (response.ok) return data as PremiumStatusResponse
+    
+    // If unauthorized (401), user doesn't have premium - return default
+    if (response.status === 401 || response.status === 403) {
+      return { hasPremium: false, expiryDate: null }
+    }
+    
     throw new Error(data.message || "Failed to fetch premium status")
   } catch (error) {
-    if (error instanceof Error) throw error
+    if (error instanceof Error) {
+      // If it's already an Error, check if it's a network error
+      // For network errors or other issues, assume no premium
+      if (error.message.includes("Network") || error.message.includes("Failed to fetch")) {
+        return { hasPremium: false, expiryDate: null }
+      }
+      throw error
+    }
+    // For any other errors, return default (no premium)
+    return { hasPremium: false, expiryDate: null }
+  }
+}
+
+// Get all payments (Admin only)
+export async function getAllPayments(token: string): Promise<PaymentsResponse> {
+  try {
+    // Try calling backend API directly first (bypass Next.js API route)
+    // This helps debug if the issue is with Next.js API route or backend
+    const config = await import("@/lib/config").then(m => m.config)
+    const directUrl = `${config.apiBaseUrl}/Payment/payments`
+    
+    console.log("Trying direct API call to:", directUrl)
+    
+    try {
+      const directResponse = await fetch(directUrl, {
+        method: "GET",
+        headers: {
+          Accept: "*/*",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      
+      if (directResponse.ok) {
+        const directData = await directResponse.json()
+        console.log("Direct API call successful!")
+        return directData as PaymentsResponse
+      } else {
+        const directData = await directResponse.json().catch(() => ({}))
+        console.log("Direct API call failed:", directResponse.status, directData)
+      }
+    } catch (directError) {
+      console.log("Direct API call error (will try Next.js route):", directError)
+    }
+    
+    // Fallback to Next.js API route
+    const response = await fetch(`/api/admin/payments`, {
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) {
+      return data as PaymentsResponse
+    } else {
+      // Check if token is expired
+      if (data?.tokenExpired || (data?.message && data.message.includes("expired"))) {
+        console.error("Token expired when fetching payments. User needs to login again.")
+        // Don't return empty list for expired token - let it throw so user knows to login
+        throw new Error("Token expired. Please login again.")
+      }
+      // Handle unauthorized/not found errors gracefully
+      if (response.status === 401 || response.status === 403) {
+        console.warn("Unauthorized to fetch payments (status:", response.status, "), returning empty list")
+        return { totalItems: 0, payments: [] }
+      }
+      if (response.status === 404) {
+        console.warn("Payments endpoint not found, returning empty list")
+        return { totalItems: 0, payments: [] }
+      }
+      // For other errors, check if message indicates authorization issue
+      const errorMessage = data?.message || "Failed to fetch payments"
+      if (errorMessage.includes("Not Authorize") || errorMessage.includes("Unauthorized") || errorMessage.includes("Not Authorized")) {
+        console.warn("Authorization error:", errorMessage, "- returning empty list")
+        return { totalItems: 0, payments: [] }
+      }
+      throw new Error(errorMessage)
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      // If it's an authorization/not found error, return empty list instead of throwing
+      if (error.message.includes("Unauthorized") || 
+          error.message.includes("Not Authorize") || 
+          error.message.includes("Not Authorized") ||
+          error.message.includes("Resource Not Found") ||
+          error.message.includes("Not Found")) {
+        console.warn("Error fetching payments:", error.message, "- returning empty list")
+        return { totalItems: 0, payments: [] }
+      }
+      throw error
+    }
     throw new Error("Network error. Please check your connection.")
   }
 }
@@ -1114,6 +1230,242 @@ export async function addFavorite(params: AddFavoriteParams, token: string): Pro
     const data = await response.json()
     if (response.ok) return data === true
     throw new Error(data.message || "Failed to add favorite")
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Admin API functions
+export type AdminUser = UserProfile
+
+export interface AdminUsersResponse {
+  pageSize: number
+  pageNumber: number
+  pageCount: number
+  data: AdminUser[]
+}
+
+// Get all users (Admin only) with pagination
+export async function getAllUsers(
+  token: string,
+  params?: { pageNumber?: number; pageSize?: number }
+): Promise<AdminUsersResponse> {
+  try {
+    const queryParams = new URLSearchParams()
+    if (params?.pageNumber !== undefined) {
+      queryParams.append("pagenumber", params.pageNumber.toString())
+    }
+    if (params?.pageSize !== undefined) {
+      queryParams.append("pazesize", params.pageSize.toString())
+    }
+
+    const url = `/api/admin/users${queryParams.toString() ? `?${queryParams.toString()}` : ""}`
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) {
+      return data as AdminUsersResponse
+    } else {
+      throw new Error(data.message || "Failed to fetch users")
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Get all restaurants (Admin only)
+export async function getAllRestaurants(token: string): Promise<{ totalIteams: number; result: Restaurant[] }> {
+  try {
+    const response = await fetch(`/api/admin/restaurants`, {
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) {
+      return data as { totalIteams: number; result: Restaurant[] }
+    } else {
+      throw new Error(data.message || "Failed to fetch restaurants")
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.warn("Admin endpoint not available, returning empty array")
+      return { totalIteams: 0, result: [] }
+    }
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Get all dishes (Admin only)
+export async function getAllDishes(token: string): Promise<DishesResponse> {
+  try {
+    const response = await fetch(`/api/admin/dishes`, {
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) {
+      return data as DishesResponse
+    } else {
+      // Fallback to regular dishes endpoint
+      return await getDishes({ token })
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      // Fallback to regular dishes endpoint
+      try {
+        return await getDishes({ token })
+      } catch {
+        return { totalIteams: 0, result: [] }
+      }
+    }
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Get all ratings (Admin only)
+export async function getAllRatings(token: string): Promise<RatingsListResponse> {
+  try {
+    const response = await fetch(`/api/admin/ratings`, {
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) {
+      return data as RatingsListResponse
+    } else {
+      throw new Error(data.message || "Failed to fetch ratings")
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.warn("Admin endpoint not available, returning empty array")
+      return { result: [], totalIteams: 0 }
+    }
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Delete user (Admin only)
+export async function deleteUser(userId: number, token: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/admin/users/${userId}`, {
+      method: "DELETE",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) {
+      return true
+    } else {
+      throw new Error(data.message || "Failed to delete user")
+    }
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Delete restaurant (Admin only)
+export async function deleteRestaurant(restaurantId: number, token: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/admin/restaurants/${restaurantId}`, {
+      method: "DELETE",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) {
+      return true
+    } else {
+      throw new Error(data.message || "Failed to delete restaurant")
+    }
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Delete dish (Admin only)
+export async function deleteDish(dishId: number, token: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/admin/dishes/${dishId}`, {
+      method: "DELETE",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) {
+      return true
+    } else {
+      throw new Error(data.message || "Failed to delete dish")
+    }
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Delete tag (Admin only)
+export async function deleteTag(tagId: number, token: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/admin/tags/${tagId}`, {
+      method: "DELETE",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) {
+      return true
+    } else {
+      throw new Error(data.message || "Failed to delete tag")
+    }
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Delete rating (Admin only)
+export async function deleteRating(ratingId: number, token: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/admin/ratings/${ratingId}`, {
+      method: "DELETE",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) {
+      return true
+    } else {
+      throw new Error(data.message || "Failed to delete rating")
+    }
   } catch (error) {
     if (error instanceof Error) throw error
     throw new Error("Network error. Please check your connection.")

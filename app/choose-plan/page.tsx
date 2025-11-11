@@ -7,7 +7,7 @@ import { ScrollReveal } from "@/components/scroll-reveal"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
 import { Check } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "@/lib/toast"
 import { useAuth } from "@/hooks/use-auth"
 import { createPremiumPayment } from "@/lib/api"
@@ -17,8 +17,18 @@ export default function ChoosePlanPage() {
   const t = (key: string) => getTranslation(language, key)
   const router = useRouter()
   const [selectedPlan, setSelectedPlan] = useState<"free" | "premium">("free")
-  const { token, isAuthenticated, user } = useAuth()
+  const { token, isAuthenticated, user, isLoading: authLoading } = useAuth()
   const [isProcessing, setIsProcessing] = useState(false)
+
+  // Block admin from accessing this page
+  useEffect(() => {
+    if (authLoading) return
+    
+    if (user && (user.roleName === "Admin" || user.roleId === 1)) {
+      toast.error(language === "vi" ? "Admin không cần mua gói Premium" : "Admin doesn't need to purchase Premium")
+      router.push("/admin")
+    }
+  }, [user, authLoading, router, language])
 
   const handleContinue = async () => {
     if (selectedPlan === "free") {

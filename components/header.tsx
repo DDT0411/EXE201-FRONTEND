@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { Menu, X, Crown } from "lucide-react"
+import { Menu, X, Crown, Shield } from "lucide-react"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
 import { useAuth } from "@/hooks/use-auth"
@@ -28,7 +28,10 @@ export function Header() {
         const status = await getPremiumStatus(token)
         setIsPremium(status.hasPremium)
       } catch (err) {
-        console.error("Failed to check premium status:", err)
+        // Only log unexpected errors (not 401/403 which are handled gracefully)
+        if (err instanceof Error && !err.message.includes("Unauthorized") && !err.message.includes("Forbidden")) {
+          console.error("Failed to check premium status:", err)
+        }
         setIsPremium(false)
       } finally {
         setIsCheckingPremium(false)
@@ -72,6 +75,14 @@ export function Header() {
             {t("nav.contact")}
             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-orange-600 group-hover:w-full transition-all duration-300"></span>
           </Link>
+          {/* Admin Link - Only show if user is admin */}
+          {isAuthenticated && user && (user.roleName === "Admin" || user.roleId === 1) && (
+            <Link href="/admin" className="text-gray-700 hover:text-orange-600 transition-colors-smooth relative group text-lg font-medium py-2 flex items-center gap-2">
+              <Shield size={18} />
+              {language === "vi" ? "Quản trị" : "Admin"}
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-orange-600 group-hover:w-full transition-all duration-300"></span>
+            </Link>
+          )}
         </div>
 
         {/* Right Side Icons */}
@@ -91,8 +102,8 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Premium Plan Button - Only show if authenticated and NOT premium */}
-          {isAuthenticated && user && !isCheckingPremium && !isPremium && (
+          {/* Premium Plan Button - Only show if authenticated, NOT premium, and NOT admin */}
+          {isAuthenticated && user && !isCheckingPremium && !isPremium && !(user.roleName === "Admin" || user.roleId === 1) && (
             <Link
               href="/choose-plan"
               className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full hover:from-purple-600 hover:to-pink-600 transition-smooth hover:shadow-lg hover:scale-105 font-medium text-sm flex items-center gap-2"
@@ -103,8 +114,8 @@ export function Header() {
             </Link>
           )}
           
-          {/* Premium Badge - Show if user has premium */}
-          {isAuthenticated && user && !isCheckingPremium && isPremium && (
+          {/* Premium Badge - Show if user has premium and NOT admin */}
+          {isAuthenticated && user && !isCheckingPremium && isPremium && !(user.roleName === "Admin" || user.roleId === 1) && (
             <div
               className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded-full font-medium text-sm flex items-center gap-2 cursor-default"
               title={language === "vi" ? "Bạn đang sử dụng Premium" : "You are using Premium"}
@@ -156,6 +167,13 @@ export function Header() {
           <Link href="/contact" className="block text-gray-700 hover:text-orange-600 py-2 transition-colors-smooth">
             {t("nav.contact")}
           </Link>
+          {/* Admin Link - Only show if user is admin */}
+          {isAuthenticated && user && (user.roleName === "Admin" || user.roleId === 1) && (
+            <Link href="/admin" className="flex items-center gap-2 text-gray-700 hover:text-orange-600 py-2 transition-colors-smooth">
+              <Shield size={18} />
+              {language === "vi" ? "Quản trị" : "Admin"}
+            </Link>
+          )}
           <Link
             href="/surprise"
             className="flex items-center gap-2 text-gray-700 hover:text-orange-600 py-2 transition-colors-smooth"
@@ -167,8 +185,8 @@ export function Header() {
             />
             {t("nav.surprise")}
           </Link>
-          {/* Premium Plan Button - Only show if authenticated and NOT premium */}
-          {isAuthenticated && user && !isCheckingPremium && !isPremium && (
+          {/* Premium Plan Button - Only show if authenticated, NOT premium, and NOT admin */}
+          {isAuthenticated && user && !isCheckingPremium && !isPremium && !(user.roleName === "Admin" || user.roleId === 1) && (
             <Link
               href="/choose-plan"
               className="block w-full px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full hover:from-purple-600 hover:to-pink-600 text-center font-medium transition-smooth flex items-center justify-center gap-2"
@@ -178,8 +196,8 @@ export function Header() {
             </Link>
           )}
           
-          {/* Premium Badge - Show if user has premium */}
-          {isAuthenticated && user && !isCheckingPremium && isPremium && (
+          {/* Premium Badge - Show if user has premium and NOT admin */}
+          {isAuthenticated && user && !isCheckingPremium && isPremium && !(user.roleName === "Admin" || user.roleId === 1) && (
             <div
               className="block w-full px-6 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded-full text-center font-medium flex items-center justify-center gap-2"
             >
