@@ -34,6 +34,26 @@ function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
 
       try {
         const data = await getRestaurantDetail(restaurantId, token || undefined)
+        
+        // If latitude/longitude are missing, try to geocode from address
+        if ((!data.latitude || !data.longitude) && data.resAddress) {
+          try {
+            console.log("Restaurant missing coordinates, attempting geocoding for:", data.resAddress)
+            const geocodeResponse = await fetch(`/api/goong/geocode?address=${encodeURIComponent(data.resAddress)}`)
+            if (geocodeResponse.ok) {
+              const geocodeData = await geocodeResponse.json()
+              data.latitude = geocodeData.lat
+              data.longitude = geocodeData.lng
+              console.log("Geocoding successful:", { lat: geocodeData.lat, lng: geocodeData.lng })
+            } else {
+              console.warn("Geocoding failed, using default coordinates")
+            }
+          } catch (geocodeErr) {
+            console.warn("Geocoding error:", geocodeErr)
+            // Continue with restaurant data even if geocoding fails
+          }
+        }
+        
         setRestaurant(data)
       } catch (err) {
         console.error("Failed to fetch restaurant data:", err)
@@ -332,14 +352,33 @@ function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
                   <MapPin className="text-orange-600 dark:text-orange-400" size={24} />
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">Vị trí</h2>
                 </div>
-                <div className="h-80 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                  <RestaurantMap
-                    latitude={restaurant.latitude}
-                    longitude={restaurant.longitude}
-                    restaurantName={restaurant.resName}
-                    restaurantAddress={restaurant.resAddress}
-                  />
+                <div className="h-[600px] rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-inner">
+                  {restaurant.latitude && restaurant.longitude ? (
+                    <RestaurantMap
+                      latitude={restaurant.latitude}
+                      longitude={restaurant.longitude}
+                      restaurantName={restaurant.resName}
+                      restaurantAddress={restaurant.resAddress}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                      <p className="text-gray-600 dark:text-gray-400 text-sm text-center px-4">
+                        Không thể tải bản đồ. Vui lòng kiểm tra địa chỉ quán ăn.
+                      </p>
+                    </div>
+                  )}
                 </div>
+                {/* Restaurant info below map */}
+                {(restaurant.resName || restaurant.resAddress) && (
+                  <div className="mt-4 space-y-2">
+                    {restaurant.resName && (
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm">{restaurant.resName}</p>
+                    )}
+                    {restaurant.resAddress && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400">{restaurant.resAddress}</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

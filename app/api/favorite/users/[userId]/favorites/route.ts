@@ -44,9 +44,16 @@ export async function GET(
         const originalId = item.id
         
         // Check for dishId in various possible field names
-        const dishIdValue = item.dishId || item.dishID || item.dish_id || item.dishID || 
-                           (item.dish && item.dish.id) || // Nested dish object
-                           (item.dishDto && item.dishDto.id) // Nested dishDto object
+        // Backend might return dishId as: dishId, dishID, dish_id, dish.id, dishDto.id, etc.
+        const dishIdValue = item.dishId || 
+                           item.dishID || 
+                           item.dish_id || 
+                           item.dish_Id ||
+                           item.DishId ||
+                           item.DishID ||
+                           (item.dish && (item.dish.id || item.dish.dishId || item.dish.dishID)) || // Nested dish object
+                           (item.dishDto && (item.dishDto.id || item.dishDto.dishId || item.dishDto.dishID)) || // Nested dishDto object
+                           (item.dishInfo && (item.dishInfo.id || item.dishInfo.dishId)) // Nested dishInfo object
         
         // Check if dishId exists and is valid
         const hasDishId = dishIdValue !== undefined && dishIdValue !== null && dishIdValue !== ""

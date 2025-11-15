@@ -1,9 +1,9 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Analytics } from "@vercel/analytics/next"
-import Script from "next/script"
 import "./globals.css"
 import { GeolocationRequest } from "@/components/geolocation-request"
+import { GoongMapsLoader } from "@/components/goong-maps-loader"
 
 export const metadata: Metadata = {
   title: "EatIT",
@@ -23,7 +23,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
+      <head>
+        {/* Goong Maps CSS - Must be in Server Component */}
+        <link
+          href="https://cdn.goong.io/goong-js/v2.1.0/goong-js.css"
+          rel="stylesheet"
+        />
+      </head>
       <body className={`font-sans antialiased`}>
+        {/* Goong Maps JS - Loaded via Client Component */}
+        <GoongMapsLoader />
         <GeolocationRequest />
         {children}
         <Analytics />

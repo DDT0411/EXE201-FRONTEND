@@ -151,32 +151,33 @@ export default function FavoritesPage() {
                 const delayMap = [100, 200, 300] as const
                 const delay = delayMap[index % delayMap.length]
                 const isDeleting = deletingIds.has(favorite.favoriteId || favorite.id)
+                const dishDetailId = favorite.dishId ?? null
+                const canViewDetail = !!dishDetailId
                 return (
                   <ScrollReveal key={favorite.id} direction="up" delay={delay}>
                     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md hover:shadow-lg transition overflow-hidden">
                       {/* Dish Image */}
                       {favorite.dishImg && (
-                        (favorite.dishId || (favorite.id && !favorite.favoriteId)) ? (
-                          <Link 
-                            href={`/food/${favorite.dishId || favorite.id}`} 
-                            className="relative block h-48 overflow-hidden bg-gray-100 dark:bg-gray-900 group"
-                            onClick={(e) => {
-                              // Debug: log the ID being used
-                              const dishId = favorite.dishId || favorite.id
-                              console.log("Navigating to food detail:", {
-                                dishId,
-                                favoriteId: favorite.favoriteId,
-                                id: favorite.id,
-                                dishName: favorite.dishName
-                              })
-                            }}
-                          >
-                          <img
-                            src={favorite.dishImg}
-                            alt={favorite.dishName}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div className={`relative h-48 overflow-hidden bg-gray-100 dark:bg-gray-900 ${canViewDetail ? "group" : "cursor-not-allowed opacity-85"}`}>
+                          {canViewDetail ? (
+                            <Link href={`/food/${dishDetailId}`} className="block h-full">
+                              <img
+                                src={favorite.dishImg}
+                                alt={favorite.dishName}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </Link>
+                          ) : (
+                            <div className="block h-full">
+                              <img
+                                src={favorite.dishImg}
+                                alt={favorite.dishName}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/15" />
+                            </div>
+                          )}
                           <div className="absolute top-2 right-2">
                             <button
                               onClick={(e) => {
@@ -195,57 +196,15 @@ export default function FavoritesPage() {
                               )}
                             </button>
                           </div>
-                        </Link>
-                        ) : (
-                          <div className="relative block h-48 overflow-hidden bg-gray-100 dark:bg-gray-900 group cursor-not-allowed opacity-75">
-                            <img
-                              src={favorite.dishImg}
-                              alt={favorite.dishName}
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                              <p className="text-white text-sm text-center px-4">
-                                {language === "vi" ? "Không thể xem chi tiết (thiếu ID món ăn)" : "Cannot view details (missing dish ID)"}
-                              </p>
-                            </div>
-                            <div className="absolute top-2 right-2">
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  handleDeleteFavorite(favorite.favoriteId || favorite.id)
-                                }}
-                                disabled={isDeleting}
-                                className="bg-white dark:bg-slate-800 rounded-full p-2 shadow-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition disabled:opacity-50"
-                                title={language === "vi" ? "Xóa khỏi yêu thích" : "Remove from favorites"}
-                              >
-                                {isDeleting ? (
-                                  <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-                                ) : (
-                                  <Trash2 className="w-5 h-5 text-red-500" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )
+                        </div>
                       )}
                       
                       {/* Dish Info */}
                       <div className="p-4">
-                        {(favorite.dishId || (favorite.id && !favorite.favoriteId)) ? (
+                        {canViewDetail ? (
                           <Link 
-                            href={`/food/${favorite.dishId || favorite.id}`} 
+                            href={`/food/${dishDetailId}`} 
                             className="block group"
-                            onClick={(e) => {
-                              // Debug: log the ID being used
-                              const dishId = favorite.dishId || favorite.id
-                              console.log("Navigating to food detail:", {
-                                dishId,
-                                favoriteId: favorite.favoriteId,
-                                id: favorite.id,
-                                dishName: favorite.dishName
-                              })
-                            }}
                           >
                           <div className="flex items-start gap-3 mb-2">
                             <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex-shrink-0 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/30 transition">
@@ -261,7 +220,7 @@ export default function FavoritesPage() {
                               </div>
                             </div>
                           </div>
-                        </Link>
+                          </Link>
                         ) : (
                           <div className="flex items-start gap-3 mb-2">
                             <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex-shrink-0">
@@ -275,9 +234,6 @@ export default function FavoritesPage() {
                                 <MapPin size={14} className="mt-0.5 flex-shrink-0" />
                                 <span className="line-clamp-2">{favorite.restaurantName}</span>
                               </div>
-                              <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                                {language === "vi" ? "⚠️ Không thể xem chi tiết (thiếu ID món ăn)" : "⚠️ Cannot view details (missing dish ID)"}
-                              </p>
                             </div>
                           </div>
                         )}
