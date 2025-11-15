@@ -100,12 +100,20 @@ export default function FoodDetailPage({ params }: { params: Promise<{ id: strin
           dishid: dish.id,
           restaurantid: dish.restaurantId,
         },
-        token
+        token,
+        {
+          userId: user.userId,
+          language,
+        }
       )
       setIsFavorite(true)
       toast.success(language === "vi" ? "Đã thêm vào yêu thích!" : "Added to favorites!")
     } catch (err) {
-      console.error("Failed to add favorite:", err)
+      const isFavoriteLimitError = err instanceof Error && (err as Error & { code?: string }).code === "FAVORITE_LIMIT"
+      if (!isFavoriteLimitError) {
+        console.error("Failed to add favorite:", err)
+      }
+
       if (err instanceof Error) {
         toast.error(err.message)
       } else {

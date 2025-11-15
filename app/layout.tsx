@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { GeolocationRequest } from "@/components/geolocation-request"
 import { GoongMapsLoader } from "@/components/goong-maps-loader"
+import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 
 export const metadata: Metadata = {
   title: "EatIT",
@@ -35,6 +36,7 @@ export default function RootLayout({
         <GoongMapsLoader />
         <GeolocationRequest />
         {children}
+        <SonnerToaster position="top-right" richColors />
         <Analytics />
       </body>
     </html>

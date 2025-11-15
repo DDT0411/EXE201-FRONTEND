@@ -1,17 +1,25 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { ScrollReveal } from "@/components/scroll-reveal"
 import { RestaurantCard } from "@/components/restaurant-card"
-import { Sparkles } from "lucide-react"
+import { Sparkles, RefreshCcw } from "lucide-react"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
-import { getTags, getNearbyRestaurants, Tag, Restaurant } from "@/lib/api"
+import {
+  getTags,
+  getNearbyRestaurants,
+  updateUserLocation,
+  Tag,
+  Restaurant,
+  type NearbyRestaurantsResponse,
+} from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/lib/toast"
+import { getCurrentLocation } from "@/lib/google-maps"
 
 export default function MenuPage() {
   const { language } = useLanguage()
@@ -24,6 +32,8 @@ export default function MenuPage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const locationRetryRef = useRef(false)
+  const [isRefreshingLocation, setIsRefreshingLocation] = useState(false)
 
   // Fetch tags on mount
   useEffect(() => {
@@ -46,59 +56,209 @@ export default function MenuPage() {
     fetchTags()
   }, [token, authLoading])
 
-  // Fetch restaurants based on radius search
+  const buildMissingLocationMessage = useCallback(
+    () =>
+      language === "vi"
+        ? "Bạn chưa cho phép lấy vị trí. Vui lòng bật định vị rồi thử lại."
+        : "Please enable location services before searching for nearby restaurants.",
+    [language]
+  )
+
+  const shouldAttemptLocationSync = useCallback((err: unknown) => {
+    if (!(err instanceof Error)) {
+      return false
+    }
+    const normalized = err.message.toLowerCase()
+    return normalized.includes("cập nhật vị trí") || normalized.includes("update your location")
+  }, [])
+
+  const refreshLocation = useCallback(
+    async ({
+      respectRetryGuard = false,
+      showSuccessToast = true,
+      showErrorToast = true,
+    }: {
+      respectRetryGuard?: boolean
+      showSuccessToast?: boolean
+      showErrorToast?: boolean
+    } = {}) => {
+      if (!token) {
+        return { success: false, errorMessage: buildMissingLocationMessage() }
+      }
+
+      if (respectRetryGuard) {
+        if (locationRetryRef.current) {
+          return { success: false }
+        }
+        locationRetryRef.current = true
+      }
+
+      setIsRefreshingLocation(true)
+      try {
+        const location = await getCurrentLocation()
+        const success = await updateUserLocation(
+          {
+            userLatitude: location.lat,
+            userLongitude: location.lng,
+          },
+          token
+        )
+
+        if (success) {
+          if (showSuccessToast) {
+            toast.success(
+              language === "vi"
+                ? "Đã cập nhật vị trí, đang tìm nhà hàng gần bạn..."
+                : "Location updated. Fetching nearby restaurants..."
+            )
+          }
+          return { success: true }
+        }
+
+        const fallbackMessage =
+          language === "vi"
+            ? "Không thể đồng bộ vị trí. Vui lòng đăng xuất và đăng nhập lại."
+            : "Unable to sync location. Please sign out and sign in again."
+
+        if (showErrorToast) {
+          toast.error(fallbackMessage)
+        }
+        return { success: false, errorMessage: fallbackMessage }
+      } catch (locationError) {
+        let errorMessage = buildMissingLocationMessage()
+
+        if (locationError instanceof Error) {
+          const lower = locationError.message.toLowerCase()
+
+          if (lower.includes("denied") || lower.includes("permission")) {
+            errorMessage =
+              language === "vi"
+                ? "Bạn đã từ chối quyền truy cập vị trí. Hãy cấp quyền trong cài đặt trình duyệt/thiết bị rồi thử lại."
+                : "Location permission was denied. Please allow access in your browser/device settings."
+          } else if (lower.includes("timeout")) {
+            errorMessage =
+              language === "vi"
+                ? "Không thể lấy vị trí hiện tại (timeout). Hãy thử di chuyển tới nơi thoáng hoặc kiểm tra GPS."
+                : "Location request timed out. Try moving to an open area or check your GPS."
+          } else if (locationError.message.trim() !== "") {
+            errorMessage =
+              language === "vi"
+                ? `Không thể lấy vị trí: ${locationError.message}`
+                : `Unable to get location: ${locationError.message}`
+          }
+        }
+
+        if (showErrorToast) {
+          toast.error(errorMessage)
+        }
+        return { success: false, errorMessage }
+      } finally {
+        setIsRefreshingLocation(false)
+      }
+    },
+    [token, language, buildMissingLocationMessage]
+  )
+
+  const fetchRestaurants = useCallback(async () => {
+    locationRetryRef.current = false
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      if (!token) {
+        setRestaurants([])
+        setError(language === "vi" ? "Vui lòng đăng nhập để xem các nhà hàng" : "Please login to view restaurants")
+        return
+      }
+
+      const radiusKm = typeof radiusSearch === "number" ? radiusSearch : parseFloat(radiusSearch) || 30
+      let restaurantsData: NearbyRestaurantsResponse | null = null
+
+      try {
+        restaurantsData = await getNearbyRestaurants({ radiusKm }, token)
+      } catch (err) {
+        if (shouldAttemptLocationSync(err)) {
+          const syncResult = await refreshLocation({ respectRetryGuard: true, showSuccessToast: false, showErrorToast: false })
+
+          if (!syncResult.success) {
+            setRestaurants([])
+            setError(syncResult.errorMessage ?? buildMissingLocationMessage())
+            return
+          }
+
+          restaurantsData = await getNearbyRestaurants({ radiusKm }, token)
+        } else {
+          throw err
+        }
+      }
+
+      if (!restaurantsData) {
+        setRestaurants([])
+        return
+      }
+
+      if (restaurantsData.restaurants && restaurantsData.restaurants.length === 0 && restaurantsData.totalItems === 0) {
+        setRestaurants([])
+      } else {
+        setRestaurants(restaurantsData.restaurants || [])
+      }
+    } catch (err) {
+      console.error("Failed to fetch restaurants:", err)
+      if (err instanceof Error && (err.message.includes("Unauthorized") || err.message.includes("401"))) {
+        clearExpiredToken()
+        setError(
+          language === "vi"
+            ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+            : "Session expired. Please login again."
+        )
+        toast.error(
+          language === "vi"
+            ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+            : "Session expired. Please login again."
+        )
+        setTimeout(() => {
+          router.push("/login")
+        }, 2000)
+      } else {
+        setError(
+          language === "vi"
+            ? "Không thể tải dữ liệu. Vui lòng thử lại sau."
+            : "Failed to load data. Please try again later."
+        )
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [
+    token,
+    radiusSearch,
+    language,
+    buildMissingLocationMessage,
+    shouldAttemptLocationSync,
+    refreshLocation,
+    clearExpiredToken,
+    router,
+  ])
+
   useEffect(() => {
-    if (authLoading) {
+    if (!authLoading) {
+      fetchRestaurants()
+    }
+  }, [authLoading, fetchRestaurants])
+
+  const handleManualRefreshLocation = useCallback(async () => {
+    if (!token) {
+      toast.error(language === "vi" ? "Vui lòng đăng nhập để cập nhật vị trí" : "Please login to refresh your location")
       return
     }
 
-    const fetchRestaurants = async () => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        if (token) {
-          const radiusKm = typeof radiusSearch === "number" ? radiusSearch : parseFloat(radiusSearch) || 30
-          const restaurantsData = await getNearbyRestaurants({ radiusKm }, token)
-          
-          // Check if we got empty result - might be due to expired token
-          if (restaurantsData.restaurants && restaurantsData.restaurants.length === 0 && restaurantsData.totalItems === 0) {
-            // This could be either no restaurants found OR token expired
-            // We'll show a message but not treat it as an error
-            setRestaurants([])
-          } else {
-            setRestaurants(restaurantsData.restaurants || [])
-          }
-        } else {
-          setError(language === "vi" ? "Vui lòng đăng nhập để xem các nhà hàng" : "Please login to view restaurants")
-        }
-      } catch (err) {
-        console.error("Failed to fetch restaurants:", err)
-        // Check if it's an unauthorized error
-        if (err instanceof Error && (err.message.includes("Unauthorized") || err.message.includes("401"))) {
-          // Clear expired token
-          clearExpiredToken()
-          setError(language === "vi" 
-            ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." 
-            : "Session expired. Please login again.")
-          // Show toast and redirect to login after a delay
-          toast.error(language === "vi" 
-            ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." 
-            : "Session expired. Please login again.")
-          setTimeout(() => {
-            router.push("/login")
-          }, 2000)
-        } else {
-          setError(language === "vi" 
-            ? "Không thể tải dữ liệu. Vui lòng thử lại sau." 
-            : "Failed to load data. Please try again later.")
-        }
-      } finally {
-        setIsLoading(false)
-      }
+    const result = await refreshLocation()
+    if (result.success) {
+      await fetchRestaurants()
+    } else if (result.errorMessage) {
+      setError(result.errorMessage)
     }
-
-    fetchRestaurants()
-  }, [token, radiusSearch, authLoading, language])
+  }, [token, language, refreshLocation, fetchRestaurants])
 
   // Build categories from tags
   const CATEGORIES = [
@@ -155,6 +315,35 @@ export default function MenuPage() {
                 ? `Tìm kiếm quán ăn trong phạm vi ${radiusSearch} km từ vị trí của bạn`
                 : `Search for restaurants within ${radiusSearch} km from your location`}
             </p>
+            
+            <div className="mt-4">
+              <button
+                onClick={handleManualRefreshLocation}
+                disabled={!token || authLoading || isRefreshingLocation}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  !token || authLoading
+                    ? "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed"
+                    : "bg-white text-orange-600 border border-orange-300 hover:bg-orange-50 dark:bg-slate-800 dark:text-orange-300 dark:border-orange-700 dark:hover:bg-slate-700"
+                }`}
+              >
+                {isRefreshingLocation ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></span>
+                    {language === "vi" ? "Đang cập nhật vị trí..." : "Refreshing location..."}
+                  </>
+                ) : (
+                  <>
+                    <RefreshCcw size={16} />
+                    {language === "vi" ? "Cập nhật vị trí của tôi" : "Refresh my location"}
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                {language === "vi"
+                  ? "Dùng khi bạn vừa di chuyển hoặc chưa bật quyền định vị."
+                  : "Use this if you just moved or previously denied location access."}
+              </p>
+            </div>
           </div>
 
           {/* Category Filter */}

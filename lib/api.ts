@@ -1313,8 +1313,56 @@ export async function getFavorites(userId: number, token: string): Promise<Favor
 }
 
 // Add favorite - Using Next.js API route to avoid CORS
-export async function addFavorite(params: AddFavoriteParams, token: string): Promise<boolean> {
+interface FavoriteLimitOptions {
+  userId?: number
+  language?: string
+}
+
+export async function addFavorite(
+  params: AddFavoriteParams,
+  token: string,
+  options: FavoriteLimitOptions = {}
+): Promise<boolean> {
   try {
+    if (!token) {
+      throw new Error("Authentication required to add favorites")
+    }
+
+    const { userId, language } = options
+
+    if (userId) {
+      let shouldEnforceLimit = true
+      let hasPremium = false
+
+      try {
+        const status = await getPremiumStatus(token)
+        hasPremium = !!status?.hasPremium
+      } catch (error) {
+        console.warn("Unable to verify premium status before adding favorite:", error)
+        shouldEnforceLimit = false
+      }
+
+      if (shouldEnforceLimit && !hasPremium) {
+        try {
+          const favorites = await getFavorites(userId, token)
+          if (favorites.length >= 5) {
+            const limitMessage =
+              language === "vi"
+                ? "Bạn đã đạt giới hạn 5 món yêu thích của gói Free. Hãy nâng cấp Premium để lưu không giới hạn."
+                : "You reached the Free plan limit (5 favorites). Upgrade to Premium for unlimited saves."
+            const limitError = new Error(limitMessage)
+            ;(limitError as Error & { code?: string }).code = "FAVORITE_LIMIT"
+            throw limitError
+          }
+        } catch (error) {
+          if (error instanceof Error && error.message.includes("giới hạn")) {
+            throw error
+          }
+          console.warn("Unable to verify favorite count before adding favorite:", error)
+        }
+      }
+    }
+
     const formData = new FormData()
     formData.append("dishid", params.dishid.toString())
     formData.append("restaurantid", params.restaurantid.toString())

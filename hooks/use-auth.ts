@@ -165,10 +165,10 @@ export function useAuth() {
 
 
   // Helper function to clear token when it's expired or invalid
-  const clearExpiredToken = () => {
+  const clearExpiredToken = useCallback(() => {
     console.warn("Token expired or invalid - clearing authentication")
     logout()
-  }
+  }, [logout])
 
   const isAuthenticated = !!token && !!user
 

@@ -71,8 +71,13 @@ export default function ContactPage() {
                     </div>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t("contact.email")}</h3>
                   </div>
+                  <p className="text-gray-600 dark:text-gray-400">Nhiptxss180835@fpt.edu.vn</p>
+                  <p className="text-gray-600 dark:text-gray-400">Phuongnyss180679@fpt.edu.vn</p>
                   <p className="text-gray-600 dark:text-gray-400">theddse183048@fpt.edu.vn</p>
-                  <p className="text-gray-600 dark:text-gray-400">chegiahuy0640@gmail.com</p>
+                  <p className="text-gray-600 dark:text-gray-400">MinhNHSE183472@fpt.edu.vn</p>
+                  <p className="text-gray-600 dark:text-gray-400">huycgse183043@fpt.edu.vn</p>
+                  <p className="text-gray-600 dark:text-gray-400">anhvplse172545@fpt.edu.vn</p>
+
                 </div>
               </ScrollReveal>
 
@@ -85,8 +90,7 @@ export default function ContactPage() {
                     </div>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t("contact.phone")}</h3>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400">0918314040</p>
-                  <p className="text-gray-600 dark:text-gray-400">0382727683</p>
+                  <p className="text-gray-600 dark:text-gray-400">0909090909</p>
                 </div>
               </ScrollReveal>
 
