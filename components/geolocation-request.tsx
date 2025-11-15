@@ -40,7 +40,9 @@ export function GeolocationRequest() {
         if (success) {
           console.log("User location updated successfully:", location)
         } else {
-          console.warn("Failed to update user location on server")
+          // If update failed, it might be due to expired token (401/403) or method not allowed (405)
+          // Don't log as error since this is expected in some cases
+          console.warn("Failed to update user location on server - this may be due to expired token or backend limitation")
         }
       } catch (error) {
         // Handle errors silently for common cases

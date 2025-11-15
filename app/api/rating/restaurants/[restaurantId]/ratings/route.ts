@@ -11,11 +11,12 @@ export async function GET(
   try {
     const { restaurantId } = await params
 
-    // Ratings are public, don't send auth header for GET requests
+    // Ratings are public - don't send Authorization header for GET requests
     // This prevents 401 errors when token is invalid or expired
     const headers: HeadersInit = {
       Accept: "*/*",
     }
+    // Explicitly NOT sending Authorization header for public ratings
 
     const upstream = await fetch(
       `${API_BASE_URL}/Rating/restaurants/${restaurantId}/ratings`,
@@ -45,12 +46,20 @@ export async function POST(
     const { restaurantId } = await params
     const body = await request.json().catch(() => ({}))
 
+    // Authorization is required for POST requests
     const authHeader = request.headers.get("authorization")
+    if (!authHeader) {
+      return NextResponse.json(
+        { message: "Authorization header is required" },
+        { status: 401 }
+      )
+    }
+
     const headers: HeadersInit = {
       Accept: "*/*",
       "Content-Type": "application/json",
+      Authorization: authHeader,
     }
-    if (authHeader) headers.Authorization = authHeader
 
     const upstream = await fetch(
       `${API_BASE_URL}/Rating/restaurants/${restaurantId}/ratings`,

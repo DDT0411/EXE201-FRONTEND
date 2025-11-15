@@ -1,3 +1,24 @@
+/**
+ * Dispatch event to notify that token has expired
+ * This will trigger auto-logout in useAuth hook
+ */
+function handleTokenExpired() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("token-expired"))
+  }
+}
+
+/**
+ * Check if response indicates token expiration and handle it
+ */
+function checkAndHandleTokenExpiration(response: Response): boolean {
+  if (response.status === 401 || response.status === 403) {
+    handleTokenExpired()
+    return true
+  }
+  return false
+}
+
 export interface RegisterParams {
   UserName: string
   Email: string
@@ -178,6 +199,10 @@ export async function changePassword(params: ChangePasswordParams, token: string
     if (response.ok) {
       return true
     } else {
+      // Check for token expiration
+      if (checkAndHandleTokenExpiration(response)) {
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.")
+      }
       throw new Error(data.message || "Change password failed")
     }
   } catch (error) {
@@ -318,6 +343,10 @@ export async function getUserProfile(userId: number, token: string): Promise<Use
     if (response.ok) {
       return data as UserProfile
     } else {
+      // Check for token expiration
+      if (checkAndHandleTokenExpiration(response)) {
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.")
+      }
       throw new Error(data.message || "Failed to fetch user profile")
     }
   } catch (error) {
@@ -378,6 +407,10 @@ export async function updateUserProfile(
     if (response.ok) {
       return true
     } else {
+      // Check for token expiration
+      if (checkAndHandleTokenExpiration(response)) {
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.")
+      }
       throw new Error(data.message || "Failed to update user profile")
     }
   } catch (error) {
@@ -404,6 +437,10 @@ export async function getUserLocation(token: string): Promise<UserLocation> {
     if (response.ok) {
       return data as UserLocation
     } else {
+      // Check for token expiration
+      if (checkAndHandleTokenExpiration(response)) {
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.")
+      }
       throw new Error(data.message || "Failed to fetch user location")
     }
   } catch (error) {
@@ -435,13 +472,31 @@ export async function updateUserLocation(
     if (response.ok) {
       return true
     } else {
+      // Handle 401/403 - token expired or invalid
+      if (checkAndHandleTokenExpiration(response)) {
+        console.warn("Unauthorized access to update location - token may be expired")
+        return false // Return false instead of throwing
+      }
+      // Handle 405 - Method Not Allowed (backend may not support PUT)
+      if (response.status === 405) {
+        console.warn("PUT method not allowed for location update - backend may not support it")
+        return false // Return false instead of throwing
+      }
+      // For other errors, still throw to maintain existing behavior
       throw new Error(data.message || "Failed to update user location")
     }
   } catch (error) {
     if (error instanceof Error) {
+      // If it's a network error, return false instead of throwing
+      if (error.message.includes("Network") || error.message.includes("Failed to fetch")) {
+        console.warn("Network error updating location - token may be expired")
+        return false
+      }
       throw error
     }
-    throw new Error("Network error. Please check your connection.")
+    // For unknown errors, return false instead of throwing
+    console.warn("Unknown error updating location")
+    return false
   }
 }
 
@@ -553,11 +608,19 @@ export interface DishDetail {
   dishDescription: string
   dishPrice: number
   isVegan: boolean
-  // Optional restaurant location info (backend will add later)
+  // Restaurant info from API
+  restaurantImg?: string
+  resName?: string
+  resAddress?: string
+  resPhoneNumber?: number
+  openingHours?: string
+  // For backward compatibility
   restaurantName?: string
   restaurantAddress?: string
   latitude?: number
   longitude?: number
+  // Restaurant ID for favorites
+  restaurantId?: number
 }
 
 export interface Restaurant {
@@ -716,10 +779,22 @@ export async function getNearbyRestaurants(params?: { radiusKm?: number }, token
     if (response.ok) {
       return data as NearbyRestaurantsResponse
     } else {
+      // Handle 401 Unauthorized - token expired or invalid
+      if (checkAndHandleTokenExpiration(response)) {
+        // Return empty result instead of throwing error
+        // This allows the UI to show a message asking user to login
+        console.warn("Unauthorized access to nearby restaurants - token may be expired")
+        return { restaurants: [], totalItems: 0 } as NearbyRestaurantsResponse
+      }
       throw new Error(data.message || "Failed to fetch nearby restaurants")
     }
   } catch (error) {
     if (error instanceof Error) {
+      // If it's a network error and we have a token, it might be expired
+      if (error.message.includes("Network") || error.message.includes("Failed to fetch")) {
+        console.warn("Network error fetching nearby restaurants - token may be expired")
+        return { restaurants: [], totalItems: 0 } as NearbyRestaurantsResponse
+      }
       throw error
     }
     throw new Error("Network error. Please check your connection.")
@@ -829,15 +904,19 @@ export async function getRatings(id: number, token?: string): Promise<Rating[]> 
 }
 
 // Get restaurant ratings list - Using Next.js API route to avoid CORS
-// Note: Ratings are public, so we don't send token for GET requests
+// Send token if available, but handle 401 gracefully since ratings are public
 export async function getRestaurantRatings(
   restaurantId: number,
   token?: string
 ): Promise<RatingsListResponse> {
   try {
-    // Ratings are public, don't send token for GET request
     const headers: HeadersInit = {
       Accept: "*/*",
+    }
+
+    // Send token if available (backend accepts it, even though ratings are public)
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
     }
 
     const response = await fetch(`/api/rating/restaurants/${restaurantId}/ratings`, {
@@ -850,8 +929,8 @@ export async function getRestaurantRatings(
       return data as RatingsListResponse
     } else {
       // Return empty result instead of throwing for non-critical errors
-      if (response.status === 401 || response.status === 403) {
-        console.warn("Failed to fetch ratings, returning empty result")
+      if (checkAndHandleTokenExpiration(response)) {
+        console.warn("Failed to fetch ratings (unauthorized), returning empty result")
         return { result: [], totalIteams: 0 }
       }
       throw new Error(data.message || "Failed to fetch restaurant ratings")
@@ -887,7 +966,12 @@ export async function createRestaurantRating(
     if (response.ok) {
       return data as { message: string }
     } else {
-      throw new Error(data.message || "Failed to create rating")
+      // Provide more detailed error messages
+      const errorMessage = data.message || data.error || `Failed to create rating (${response.status})`
+      if (checkAndHandleTokenExpiration(response)) {
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.")
+      }
+      throw new Error(errorMessage)
     }
   } catch (error) {
     if (error instanceof Error) {
@@ -903,6 +987,8 @@ export interface FoodSuggestion {
   resName: string
   resAddress: string
   distanceDisplay: string | null
+  dishId?: number // Optional dish ID for linking to food detail page
+  dishImage?: string // Optional dish image
 }
 
 // Get food suggestion - Using Next.js API route to avoid CORS
@@ -939,12 +1025,22 @@ export async function getFoodSuggestion(radiusKm?: number, token?: string): Prom
           resName: s.resName || s.restaurantName || "",
           resAddress: s.resAddress || s.restaurantAddress || "",
           distanceDisplay: s.distanceDisplay || null,
+          dishId: s.dishId || s.dishID || s.id || undefined,
+          dishImage: s.dishImage || s.dishImg || undefined,
         } as FoodSuggestion
       }
 
       // If API returned a single object matching our shape, return it directly
       if (data && (data.suggestion || data.restaurantImg || data.resName)) {
-        return data as FoodSuggestion
+        return {
+          suggestion: data.suggestion || data.dishName || "",
+          restaurantImg: data.restaurantImg || "",
+          resName: data.resName || data.restaurantName || "",
+          resAddress: data.resAddress || data.restaurantAddress || "",
+          distanceDisplay: data.distanceDisplay || null,
+          dishId: data.dishId || data.dishID || data.id || undefined,
+          dishImage: data.dishImage || data.dishImg || undefined,
+        } as FoodSuggestion
       }
 
       // Unknown shape
@@ -1066,7 +1162,7 @@ export async function getPremiumStatus(token: string): Promise<PremiumStatusResp
     if (response.ok) return data as PremiumStatusResponse
     
     // If unauthorized (401), user doesn't have premium - return default
-    if (response.status === 401 || response.status === 403) {
+    if (checkAndHandleTokenExpiration(response)) {
       return { hasPremium: false, expiryDate: null }
     }
     
@@ -1135,7 +1231,7 @@ export async function getAllPayments(token: string): Promise<PaymentsResponse> {
         throw new Error("Token expired. Please login again.")
       }
       // Handle unauthorized/not found errors gracefully
-      if (response.status === 401 || response.status === 403) {
+      if (checkAndHandleTokenExpiration(response)) {
         console.warn("Unauthorized to fetch payments (status:", response.status, "), returning empty list")
         return { totalItems: 0, payments: [] }
       }
@@ -1185,10 +1281,14 @@ export async function getPaymentSuccess(orderCode: string, token: string): Promi
 
 // Favorite types
 export interface Favorite {
-  id: number
-  userName: string
+  id: number // This should be the dish ID (used to link to food detail page)
+  favoriteId?: number // Optional: The favorite ID for deletion (if API returns separately)
+  dishId?: number // Optional: Explicit dish ID field
   dishName: string
   restaurantName: string
+  dishImg?: string
+  // For backward compatibility
+  userName?: string
 }
 
 export interface AddFavoriteParams {
@@ -1196,10 +1296,10 @@ export interface AddFavoriteParams {
   restaurantid: number
 }
 
-// Get favorites - Using Next.js API route to avoid CORS
-export async function getFavorites(token: string): Promise<Favorite[]> {
+// Get favorites by user ID - Using Next.js API route to avoid CORS
+export async function getFavorites(userId: number, token: string): Promise<Favorite[]> {
   try {
-    const response = await fetch(`/api/favorite/favorites`, {
+    const response = await fetch(`/api/favorite/users/${userId}/favorites`, {
       method: "GET",
       headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
     })
@@ -1230,6 +1330,25 @@ export async function addFavorite(params: AddFavoriteParams, token: string): Pro
     const data = await response.json()
     if (response.ok) return data === true
     throw new Error(data.message || "Failed to add favorite")
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Delete favorite - Using Next.js API route to avoid CORS
+export async function deleteFavorite(favoriteId: number, token: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/favorite/favorites/${favoriteId}`, {
+      method: "DELETE",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const data = await response.json()
+    if (response.ok) return true
+    throw new Error(data.message || "Failed to delete favorite")
   } catch (error) {
     if (error instanceof Error) throw error
     throw new Error("Network error. Please check your connection.")
@@ -1468,6 +1587,81 @@ export async function deleteRating(ratingId: number, token: string): Promise<boo
     }
   } catch (error) {
     if (error instanceof Error) throw error
+    throw new Error("Network error. Please check your connection.")
+  }
+}
+
+// Goong Maps Directions API
+export interface DirectionsResponse {
+  routes?: Array<{
+    legs?: Array<{
+      distance?: { value?: number; text?: string }
+      duration?: { value?: number; text?: string }
+      steps?: Array<{
+        geometry?: {
+          coordinates?: Array<[number, number]>
+        }
+      }>
+    }>
+    geometry?: {
+      coordinates?: Array<[number, number]>
+    }
+  }>
+  // Alternative format from Goong API
+  paths?: Array<{
+    distance?: number
+    duration?: number
+    points?: string // Encoded polyline
+  }>
+  // Error response
+  error?: string | { message?: string }
+  message?: string
+}
+
+// Get directions from Goong Maps - Using Next.js API route
+export async function getDirections(
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+  vehicle: "car" | "bike" | "foot" = "car"
+): Promise<DirectionsResponse> {
+  try {
+    const originStr = `${origin.lat},${origin.lng}`
+    const destinationStr = `${destination.lat},${destination.lng}`
+    
+    console.log("Getting directions:", { origin: originStr, destination: destinationStr, vehicle })
+    
+    const response = await fetch(
+      `/api/goong/directions?origin=${originStr}&destination=${destinationStr}&vehicle=${vehicle}`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      }
+    )
+
+    let data
+    try {
+      data = await response.json()
+    } catch (parseError) {
+      console.error("Failed to parse directions response:", parseError)
+      throw new Error("Invalid response from server")
+    }
+
+    if (response.ok) {
+      console.log("Directions response:", data)
+      return data as DirectionsResponse
+    } else {
+      const errorMessage = typeof data?.error === "string" 
+        ? data.error 
+        : data?.error?.message || data?.message || "Failed to get directions"
+      console.error("Directions API error:", { status: response.status, error: errorMessage, data })
+      throw new Error(errorMessage)
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
     throw new Error("Network error. Please check your connection.")
   }
 }

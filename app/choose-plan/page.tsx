@@ -10,7 +10,7 @@ import { Check } from "lucide-react"
 import { useState, useEffect } from "react"
 import { toast } from "@/lib/toast"
 import { useAuth } from "@/hooks/use-auth"
-import { createPremiumPayment } from "@/lib/api"
+import { createPremiumPayment, getPremiumStatus } from "@/lib/api"
 
 export default function ChoosePlanPage() {
   const { language } = useLanguage()
@@ -20,15 +20,31 @@ export default function ChoosePlanPage() {
   const { token, isAuthenticated, user, isLoading: authLoading } = useAuth()
   const [isProcessing, setIsProcessing] = useState(false)
 
-  // Block admin from accessing this page
+  // Block admin and premium users from accessing this page
   useEffect(() => {
     if (authLoading) return
     
     if (user && (user.roleName === "Admin" || user.roleId === 1)) {
       toast.error(language === "vi" ? "Admin không cần mua gói Premium" : "Admin doesn't need to purchase Premium")
       router.push("/admin")
+      return
     }
-  }, [user, authLoading, router, language])
+
+    // Check if user already has premium
+    if (isAuthenticated && token) {
+      getPremiumStatus(token)
+        .then((status) => {
+          if (status.hasPremium) {
+            toast.info(language === "vi" ? "Bạn đã có gói Premium rồi!" : "You already have Premium!")
+            router.push("/")
+          }
+        })
+        .catch((err) => {
+          // If check fails, allow user to stay on page
+          console.error("Failed to check premium status:", err)
+        })
+    }
+  }, [user, authLoading, router, language, isAuthenticated, token])
 
   const handleContinue = async () => {
     if (selectedPlan === "free") {
@@ -63,6 +79,11 @@ export default function ChoosePlanPage() {
       )
       // Open PayOS checkout in a new tab as per your flow
       if (checkout.checkoutUrl) {
+        // Lưu orderCode vào localStorage để dùng khi PayOS redirect về
+        // PayOS không gửi orderCode trong query params, chỉ gửi code và id
+        if (checkout.orderCode) {
+          localStorage.setItem("pending_orderCode", checkout.orderCode.toString())
+        }
         window.open(checkout.checkoutUrl, "_blank")
         toast.info(language === "vi" ? "Đã mở trang thanh toán" : "Checkout opened in a new tab")
       }

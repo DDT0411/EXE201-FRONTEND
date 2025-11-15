@@ -4,8 +4,9 @@ import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { ScrollReveal } from "@/components/scroll-reveal"
-import { Sparkles, RotateCw, MapPin, Lock } from "lucide-react"
+import { Sparkles, RotateCw, MapPin, Lock, Utensils, ArrowRight, ChefHat } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
 import { getFoodSuggestion, FoodSuggestion, getPremiumStatus } from "@/lib/api"
@@ -15,6 +16,7 @@ import { toast } from "@/lib/toast"
 export default function SurprisePage() {
   const { language } = useLanguage()
   const { token, user } = useAuth()
+  const router = useRouter()
   const t = (key: string) => getTranslation(language, key)
   const [hasClicked, setHasClicked] = useState(false)
   const [recommendedFood, setRecommendedFood] = useState<FoodSuggestion | null>(null)
@@ -123,29 +125,37 @@ export default function SurprisePage() {
     setError(null)
   }
 
+  const radiusOptions = [5, 10, 20, 30]
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white dark:from-slate-900 dark:to-slate-950">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 via-white to-orange-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
       <Header />
 
-      {/* Header Section */}
-      <section className="bg-gradient-to-r from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-700 py-12 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8">
-        <ScrollReveal direction="down" className="max-w-4xl mx-auto text-center">
+      {/* Header Section with animated background */}
+      <section className="relative bg-gradient-to-r from-orange-500 via-orange-600 to-orange-500 dark:from-orange-600 dark:via-orange-700 dark:to-orange-600 py-12 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full mix-blend-multiply filter blur-xl animate-blob"></div>
+          <div className="absolute top-20 right-10 w-72 h-72 bg-orange-300 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000"></div>
+          <div className="absolute -bottom-8 left-1/2 w-72 h-72 bg-orange-200 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-4000"></div>
+        </div>
+        
+        <ScrollReveal direction="down" className="max-w-4xl mx-auto text-center relative z-10">
           <div className="flex items-center justify-center gap-3 mb-6">
             <Sparkles className="text-white animate-pulse" size={40} />
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white">{t("surprise.title")}</h1>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white drop-shadow-lg">{t("surprise.title")}</h1>
           </div>
-          <p className="text-orange-100 text-lg sm:text-xl mb-4">{t("surprise.subtitle")}</p>
+          <p className="text-orange-100 text-lg sm:text-xl mb-4 font-medium">{t("surprise.subtitle")}</p>
           <p className="text-orange-50 text-base sm:text-lg max-w-2xl mx-auto">{t("surprise.description")}</p>
         </ScrollReveal>
       </section>
 
-      {/* Main Content - Image/Recommendation Display */}
+      {/* Main Content */}
       <section className="flex-1 py-8 sm:py-12 md:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           {/* Center Image/Food Display */}
           <ScrollReveal direction="up" delay={200} className="mb-8">
             <div className="relative min-h-[400px] sm:min-h-[500px] md:min-h-[600px] flex items-center justify-center">
-              {/* Default Image or Recommended Food */}
               {!hasClicked ? (
                 <div className="relative w-full max-w-md mx-auto">
                   <div className="absolute inset-0 bg-gradient-to-br from-orange-200 to-orange-300 dark:from-orange-800 dark:to-orange-900 rounded-3xl blur-3xl opacity-50 animate-pulse-slow"></div>
@@ -175,47 +185,99 @@ export default function SurprisePage() {
               ) : recommendedFood ? (
                 <ScrollReveal direction="scale" className="w-full">
                   <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl overflow-hidden hover:shadow-orange-200 dark:hover:shadow-orange-900 transition-all duration-500 animate-fadeInUp">
-                    {/* Restaurant Image */}
-                    <div className="relative h-64 sm:h-80 md:h-96 overflow-hidden bg-gradient-to-br from-orange-100 to-orange-200 dark:from-slate-700 dark:to-slate-800">
-                      <img
-                        src={recommendedFood.restaurantImg || "/placeholder.svg"}
-                        alt={recommendedFood.resName}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                    {/* Food/Dish Section - Prominent */}
+                    <div className="relative bg-gradient-to-br from-orange-100 via-orange-50 to-white dark:from-slate-700 dark:via-slate-800 dark:to-slate-900 p-8 sm:p-10 border-b-4 border-orange-500">
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0">
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
+                            <Utensils className="text-white" size={40} />
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <ChefHat className="text-orange-500" size={24} />
+                            <span className="text-sm font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wide">
+                              {language === "vi" ? "Món ăn được đề xuất" : "Recommended Dish"}
+                            </span>
+                          </div>
+                          {recommendedFood.dishId ? (
+                            <Link 
+                              href={`/food/${recommendedFood.dishId}`}
+                              className="group block"
+                            >
+                              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors duration-300">
+                                {recommendedFood.suggestion}
+                              </h2>
+                              <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-semibold group-hover:gap-4 transition-all duration-300">
+                                <span>{language === "vi" ? "Xem chi tiết món ăn" : "View dish details"}</span>
+                                <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
+                              </div>
+                            </Link>
+                          ) : (
+                            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3">
+                              {recommendedFood.suggestion}
+                            </h2>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Restaurant Details */}
+                    {/* Restaurant Section - Secondary */}
                     <div className="p-6 sm:p-8">
-                      <div className="mb-4">
-                        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                          {recommendedFood.suggestion}
-                        </h2>
-                      </div>
-
-                      {/* Restaurant Info */}
-                      <div className="bg-orange-50 dark:bg-slate-900 rounded-xl p-4 mb-6 border border-orange-200 dark:border-orange-800">
-                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">{recommendedFood.resName}</h3>
-                        <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-1">
-                          <MapPin size={18} />
-                          <span>{recommendedFood.resAddress}</span>
+                      <div className="bg-gradient-to-r from-slate-50 to-orange-50 dark:from-slate-900 dark:to-slate-800 rounded-2xl p-6 border border-orange-200 dark:border-orange-800">
+                        <div className="flex items-start gap-3 mb-4">
+                          <div className="flex-shrink-0">
+                            <div className="w-16 h-16 rounded-xl overflow-hidden shadow-md">
+                              <img
+                                src={recommendedFood.restaurantImg || "/placeholder.svg"}
+                                alt={recommendedFood.resName}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <MapPin className="text-orange-500" size={20} />
+                              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+                                {language === "vi" ? "Tại quán ăn" : "At Restaurant"}
+                              </span>
+                            </div>
+                            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                              {recommendedFood.resName}
+                            </h3>
+                            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-2">
+                              <MapPin size={18} />
+                              <span className="text-sm sm:text-base">{recommendedFood.resAddress}</span>
+                            </div>
+                            {recommendedFood.distanceDisplay && (
+                              <div className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-full">
+                                <span className="text-orange-600 dark:text-orange-400 font-semibold text-sm">
+                                  📍 {recommendedFood.distanceDisplay}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {recommendedFood.distanceDisplay && (
-                          <span className="text-orange-600 dark:text-orange-400 font-semibold">
-                            {recommendedFood.distanceDisplay}
-                          </span>
-                        )}
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex flex-col sm:flex-row gap-4 mt-6">
                         <button
                           onClick={handleTryAgain}
-                          className="flex-1 py-3 px-6 border-2 border-orange-500 text-orange-600 dark:text-orange-400 rounded-full hover:bg-orange-50 dark:hover:bg-slate-700 transition font-semibold flex items-center justify-center gap-2"
+                          className="flex-1 py-3 px-6 border-2 border-orange-500 text-orange-600 dark:text-orange-400 rounded-full hover:bg-orange-50 dark:hover:bg-slate-700 transition font-semibold flex items-center justify-center gap-2 hover:scale-105 active:scale-95"
                         >
                           <RotateCw size={20} />
                           {t("surprise.tryAgain")}
                         </button>
+                        {recommendedFood.dishId && (
+                          <Link
+                            href={`/food/${recommendedFood.dishId}`}
+                            className="flex-1 py-3 px-6 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full hover:from-orange-600 hover:to-orange-700 transition font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
+                          >
+                            <span>{language === "vi" ? "Xem chi tiết" : "View Details"}</span>
+                            <ArrowRight size={20} />
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -226,7 +288,7 @@ export default function SurprisePage() {
                     <p className="text-red-600 dark:text-red-400 text-lg mb-6">{error}</p>
                     <button
                       onClick={handleTryAgain}
-                      className="inline-flex items-center gap-2 py-3 px-6 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition font-semibold"
+                      className="inline-flex items-center gap-2 py-3 px-6 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition font-semibold hover:scale-105 active:scale-95"
                     >
                       <RotateCw size={20} />
                       Thử lại
@@ -237,32 +299,46 @@ export default function SurprisePage() {
             </div>
           </ScrollReveal>
 
-          {/* Radius Input and Usage Info */}
+          {/* Radius Selection Buttons and Usage Info */}
           {!hasClicked && (
             <ScrollReveal direction="up" delay={300} className="mb-6">
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg max-w-md mx-auto">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {language === "vi" ? "Bán kính tìm kiếm (km)" : "Search Radius (km)"}
+              <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl max-w-2xl mx-auto border border-orange-100 dark:border-orange-900">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 text-center">
+                  {language === "vi" ? "Chọn bán kính tìm kiếm" : "Select Search Radius"}
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={radiusKm}
-                  onChange={(e) => setRadiusKm(parseInt(e.target.value, 10) || 20)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-smooth"
-                />
+                
+                {/* Radius Buttons */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                  {radiusOptions.map((radius) => (
+                    <button
+                      key={radius}
+                      onClick={() => setRadiusKm(radius)}
+                      className={`relative py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 active:scale-95 ${
+                        radiusKm === radius
+                          ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg ring-4 ring-orange-200 dark:ring-orange-800"
+                          : "bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-orange-900/30"
+                      }`}
+                    >
+                      {radius}km
+                      {radiusKm === radius && (
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-400 rounded-full flex items-center justify-center">
+                          <Sparkles className="text-white" size={14} />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
                 
                 {!checkingPremium && (
-                  <div className="mt-4 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+                  <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border border-orange-200 dark:border-orange-800">
                     {isPremium ? (
-                      <p className="text-sm text-orange-800 dark:text-orange-200">
+                      <p className="text-sm text-orange-800 dark:text-orange-200 font-semibold text-center">
                         {language === "vi" 
                           ? "✨ Bạn đang sử dụng gói Premium - Không giới hạn!" 
                           : "✨ You're using Premium - Unlimited!"}
                       </p>
                     ) : (
-                      <p className="text-sm text-orange-800 dark:text-orange-200">
+                      <p className="text-sm text-orange-800 dark:text-orange-200 font-semibold text-center">
                         {language === "vi" 
                           ? `📊 Đã dùng ${dailyUsage}/2 lần miễn phí hôm nay` 
                           : `📊 Used ${dailyUsage}/2 free uses today`}
@@ -280,7 +356,7 @@ export default function SurprisePage() {
               <button
                 onClick={handleRecommendation}
                 disabled={isLoading || checkingPremium || (!isPremium && dailyUsage >= 2)}
-                className="group relative px-12 sm:px-16 md:px-20 py-4 sm:py-5 md:py-6 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-full font-bold text-lg sm:text-xl md:text-2xl shadow-2xl hover:shadow-orange-500/50 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="group relative px-12 sm:px-16 md:px-20 py-4 sm:py-5 md:py-6 bg-gradient-to-r from-orange-500 via-orange-600 to-orange-500 hover:from-orange-600 hover:via-orange-700 hover:to-orange-600 text-white rounded-full font-bold text-lg sm:text-xl md:text-2xl shadow-2xl hover:shadow-orange-500/50 transition-all duration-300 hover:scale-110 active:scale-95 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <span className="relative z-10 flex items-center justify-center gap-3">
                   {!isPremium && dailyUsage >= 2 ? (
@@ -297,24 +373,26 @@ export default function SurprisePage() {
                     </>
                   )}
                 </span>
-                {/* Shimmer Effect */}
-                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+                {/* Enhanced Shimmer Effect */}
+                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+                {/* Pulse effect */}
+                <div className="absolute inset-0 rounded-full bg-white/20 opacity-0 group-hover:opacity-100 group-hover:animate-ping"></div>
               </button>
             </ScrollReveal>
           )}
 
-          {/* Premium Info Box - Only show for non-premium users */}
+          {/* Premium Info Box */}
           {hasClicked && recommendedFood && !isPremium && (
             <ScrollReveal direction="up" delay={300} className="mt-8">
-              <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 text-center">
-                <p className="text-blue-900 dark:text-blue-100 mb-4">
+              <div className="bg-gradient-to-r from-blue-50 via-blue-100 to-blue-50 dark:from-blue-900/20 dark:via-blue-800/20 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-2xl p-6 text-center shadow-lg">
+                <p className="text-blue-900 dark:text-blue-100 mb-4 font-semibold text-lg">
                   {language === "vi" 
                     ? "Nâng cấp lên Premium để sử dụng tính năng này không giới hạn mỗi ngày!" 
                     : "Upgrade to Premium to use this feature unlimited times per day!"}
                 </p>
                 <Link
                   href="/choose-plan"
-                  className="inline-block px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition font-semibold shadow-lg hover:shadow-xl hover:scale-105"
+                  className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full hover:from-blue-700 hover:to-blue-800 transition font-semibold shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
                 >
                   {t("surprise.upgradePremium")}
                 </Link>

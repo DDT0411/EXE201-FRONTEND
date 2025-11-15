@@ -3,15 +3,17 @@
 import { useState, use, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { Heart, MapPin, Leaf } from "lucide-react"
-import { getDishDetail, DishDetail } from "@/lib/api"
+import { Heart, MapPin, Leaf, Phone, Clock } from "lucide-react"
+import { getDishDetail, DishDetail, addFavorite, getNearbyRestaurants } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
-import { RestaurantMap } from "@/components/restaurant-map"
+import { toast } from "@/lib/toast"
+import { useLanguage } from "@/hooks/use-language"
 
 export default function FoodDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const foodId = Number.parseInt(id)
-  const { token } = useAuth()
+  const { token, user } = useAuth()
+  const { language } = useLanguage()
 
   // State for dish
   const [dish, setDish] = useState<DishDetail | null>(null)
@@ -20,6 +22,7 @@ export default function FoodDetailPage({ params }: { params: Promise<{ id: strin
 
   // State for favorite
   const [isFavorite, setIsFavorite] = useState(false)
+  const [isAddingFavorite, setIsAddingFavorite] = useState(false)
 
   // Fetch data on mount
   useEffect(() => {
@@ -28,12 +31,41 @@ export default function FoodDetailPage({ params }: { params: Promise<{ id: strin
       setError(null)
 
       try {
+        // Log the ID being used for debugging
+        console.log("Fetching dish detail for ID:", foodId)
+        
         // Fetch dish detail
         const dishData = await getDishDetail(foodId, token || undefined)
+        
+        // If restaurantId is not in response, try to find it from nearby restaurants
+        if (!dishData.restaurantId && token && dishData.resName) {
+          try {
+            const nearbyData = await getNearbyRestaurants({ radiusKm: 50 }, token)
+            const matchingRestaurant = nearbyData.restaurants.find(
+              r => r.resName === dishData.resName || r.resName === dishData.restaurantName
+            )
+            if (matchingRestaurant) {
+              dishData.restaurantId = matchingRestaurant.id
+            }
+          } catch (err) {
+            console.warn("Failed to find restaurant ID from nearby restaurants:", err)
+          }
+        }
+        
         setDish(dishData)
       } catch (err) {
-        console.error("Failed to fetch data:", err)
-        setError("Không thể tải thông tin món ăn")
+        console.error("Failed to fetch dish detail:", err)
+        if (err instanceof Error) {
+          console.error("Error message:", err.message)
+          // Check if it's a "not found" error
+          if (err.message.includes("not found") || err.message.includes("Không tìm thấy") || err.message.includes("Failed to fetch dish detail")) {
+            setError(`Không tìm thấy món ăn với ID: ${foodId}. Có thể ID không đúng hoặc món ăn đã bị xóa.`)
+          } else {
+            setError(err.message || "Không thể tải thông tin món ăn")
+          }
+        } else {
+          setError("Không thể tải thông tin món ăn")
+        }
       } finally {
         setIsLoading(false)
       }
@@ -41,6 +73,48 @@ export default function FoodDetailPage({ params }: { params: Promise<{ id: strin
 
     fetchData()
   }, [foodId, token])
+
+  const handleAddFavorite = async () => {
+    if (!token || !user) {
+      toast.error(language === "vi" ? "Vui lòng đăng nhập để thêm vào yêu thích" : "Please login to add to favorites")
+      return
+    }
+
+    if (!dish) {
+      toast.error(language === "vi" ? "Thiếu thông tin món ăn" : "Missing dish information")
+      return
+    }
+
+    // Note: restaurantId might not be in API response yet
+    // For now, we'll need to get it from restaurant name or handle it differently
+    // This is a temporary solution - API should provide restaurantId in future
+    if (!dish.restaurantId) {
+      toast.error(language === "vi" ? "Không thể xác định quán ăn. Vui lòng thử lại sau." : "Cannot identify restaurant. Please try again later.")
+      return
+    }
+
+    setIsAddingFavorite(true)
+    try {
+      await addFavorite(
+        {
+          dishid: dish.id,
+          restaurantid: dish.restaurantId,
+        },
+        token
+      )
+      setIsFavorite(true)
+      toast.success(language === "vi" ? "Đã thêm vào yêu thích!" : "Added to favorites!")
+    } catch (err) {
+      console.error("Failed to add favorite:", err)
+      if (err instanceof Error) {
+        toast.error(err.message)
+      } else {
+        toast.error(language === "vi" ? "Không thể thêm vào yêu thích" : "Failed to add to favorites")
+      }
+    } finally {
+      setIsAddingFavorite(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -90,17 +164,20 @@ export default function FoodDetailPage({ params }: { params: Promise<{ id: strin
                   <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none"></div>
                 </div>
                 {/* Favorite Button */}
-                <button
-                  onClick={() => setIsFavorite(!isFavorite)}
-                  className="absolute top-4 right-4 bg-white dark:bg-slate-800 rounded-full p-3 shadow-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-all hover:scale-110 z-10"
-                  title={isFavorite ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
-                  aria-label={isFavorite ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
-                >
-                  <Heart 
-                    size={24} 
-                    className={isFavorite ? "text-red-500 fill-red-500" : "text-gray-600 dark:text-gray-400"} 
-                  />
-                </button>
+                {token && (
+                  <button
+                    onClick={handleAddFavorite}
+                    disabled={isFavorite || isAddingFavorite}
+                    className="absolute top-4 right-4 bg-white dark:bg-slate-800 rounded-full p-3 shadow-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-all hover:scale-110 z-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={isFavorite ? (language === "vi" ? "Đã thêm vào yêu thích" : "Added to favorites") : (language === "vi" ? "Thêm vào yêu thích" : "Add to favorites")}
+                    aria-label={isFavorite ? (language === "vi" ? "Đã thêm vào yêu thích" : "Added to favorites") : (language === "vi" ? "Thêm vào yêu thích" : "Add to favorites")}
+                  >
+                    <Heart 
+                      size={24} 
+                      className={isFavorite ? "text-red-500 fill-red-500" : "text-gray-600 dark:text-gray-400"} 
+                    />
+                  </button>
+                )}
                 {/* Vegan Badge */}
                 {dish.isVegan && (
                   <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm font-semibold shadow-lg z-10">
@@ -132,7 +209,9 @@ export default function FoodDetailPage({ params }: { params: Promise<{ id: strin
 
                   {/* Description */}
                   <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Mô tả món ăn</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                      {language === "vi" ? "Mô tả món ăn" : "Dish Description"}
+                    </h2>
                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-base">
                       {dish.dishDescription}
                     </p>
@@ -140,36 +219,41 @@ export default function FoodDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
 
-              {/* Restaurant Location Card */}
+              {/* Restaurant Info Card */}
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 lg:p-8 shadow-xl">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-4">
                     <MapPin className="text-orange-600 dark:text-orange-400" size={24} />
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Vị trí quán ăn</h2>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                      {language === "vi" ? "Thông tin quán ăn" : "Restaurant Information"}
+                    </h2>
                   </div>
                   
-                  {dish.restaurantName && (
+                  {(dish.resName || dish.restaurantName) && (
                     <div className="mb-4">
-                      <p className="font-semibold text-gray-900 dark:text-white text-lg mb-1">
-                        {dish.restaurantName}
+                      <p className="font-semibold text-gray-900 dark:text-white text-lg mb-2">
+                        {dish.resName || dish.restaurantName}
                       </p>
-                      {dish.restaurantAddress && (
-                        <p className="text-gray-600 dark:text-gray-400 text-sm">
-                          {dish.restaurantAddress}
-                        </p>
+                      {(dish.resAddress || dish.restaurantAddress) && (
+                        <div className="flex items-start gap-2 text-gray-600 dark:text-gray-400 text-sm mb-3">
+                          <MapPin size={16} className="mt-0.5 flex-shrink-0" />
+                          <span>{dish.resAddress || dish.restaurantAddress}</span>
+                        </div>
+                      )}
+                      {dish.resPhoneNumber && (
+                        <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm mb-3">
+                          <Phone size={16} />
+                          <span>{dish.resPhoneNumber}</span>
+                        </div>
+                      )}
+                      {dish.openingHours && (
+                        <div className="flex items-start gap-2 text-gray-600 dark:text-gray-400 text-sm">
+                          <Clock size={16} className="mt-0.5 flex-shrink-0" />
+                          <span>{dish.openingHours}</span>
+                        </div>
                       )}
                     </div>
                   )}
-
-                  {/* Map */}
-                  <div className="h-64 lg:h-80 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                    <RestaurantMap
-                      latitude={dish.latitude}
-                      longitude={dish.longitude}
-                      restaurantName={dish.restaurantName}
-                      restaurantAddress={dish.restaurantAddress}
-                    />
-                  </div>
                 </div>
               </div>
             </div>

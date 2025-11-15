@@ -48,6 +48,20 @@ export async function GET(
       if (data && data.dishImage) {
         data.dishImage = data.dishImage.replace(config.imageUrlPrefix, "")
       }
+      if (data && data.restaurantImg) {
+        data.restaurantImg = data.restaurantImg.replace(config.imageUrlPrefix, "")
+      }
+      // Map restaurantName to resName for consistency
+      if (data && data.resName && !data.restaurantName) {
+        data.restaurantName = data.resName
+      }
+      if (data && data.resAddress && !data.restaurantAddress) {
+        data.restaurantAddress = data.resAddress
+      }
+      // Extract restaurantId if available (API might return it as restaurantId, resId, or restaurant.id)
+      if (data && !data.restaurantId) {
+        data.restaurantId = data.restaurantId || data.resId || data.restaurant?.id || undefined
+      }
       return NextResponse.json(data, { status: 200 })
     } else {
       return NextResponse.json(

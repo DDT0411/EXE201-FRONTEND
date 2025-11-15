@@ -10,7 +10,7 @@ import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
-import { loginUser } from "@/lib/api"
+import { loginUser, getPremiumStatus } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/lib/toast"
 
@@ -44,7 +44,28 @@ export default function LoginPage() {
         language === "vi" ? "Đăng nhập thành công!" : "Login successful!"
       )
 
-      // Check if user has completed onboarding
+      // Check premium status first
+      try {
+        const premiumStatus = await getPremiumStatus(response.token)
+        
+        // If user has premium, skip plan selection and go directly to home (or onboarding if needed)
+        if (premiumStatus.hasPremium) {
+          const hasCompletedOnboarding = localStorage.getItem(`onboarding_completed_${response.user.userId}`)
+          if (hasCompletedOnboarding !== "true") {
+            // First time login, show onboarding
+            router.push("/onboarding")
+          } else {
+            // Everything done, go to home
+            router.push("/")
+          }
+          return
+        }
+      } catch (err) {
+        // If premium status check fails, continue with normal flow
+        console.error("Failed to check premium status:", err)
+      }
+
+      // User doesn't have premium, check onboarding and plan selection
       const hasCompletedOnboarding = localStorage.getItem(`onboarding_completed_${response.user.userId}`)
       const hasSelectedPlan = localStorage.getItem(`plan_selected_${response.user.userId}`)
       
@@ -151,14 +172,8 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Remember Me */}
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" className="w-4 h-4 rounded border-gray-300" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {language === "vi" ? "Ghi Nhớ tôi" : "Remember me"}
-                  </span>
-                </label>
+              {/* Forgot Password Link */}
+              <div className="flex items-center justify-end">
                 <Link href="/forgot-password" className="text-sm text-orange-600 dark:text-orange-400 hover:underline">
                   {language === "vi" ? "Quên mật khẩu?" : "Forgot password?"}
                 </Link>

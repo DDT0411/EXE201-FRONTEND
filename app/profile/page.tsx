@@ -4,13 +4,13 @@ import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { User, Settings, LogOut, Heart, Globe, Sparkles, CreditCard } from "lucide-react"
+import { User, Settings, LogOut, Heart, Globe, Sparkles, CreditCard, Trash2, Utensils, MapPin, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
 import { languages } from "@/lib/i18n"
 import { useAuth } from "@/hooks/use-auth"
-import { getUserProfile, updateUserProfile, logoutUser, changePassword, UserProfile, ChangePasswordParams, getPaymentHistory, PaymentHistoryItem, getPremiumStatus, getFavorites, Favorite } from "@/lib/api"
+import { getUserProfile, updateUserProfile, logoutUser, changePassword, UserProfile, ChangePasswordParams, getPaymentHistory, PaymentHistoryItem, getPremiumStatus, getFavorites, Favorite, deleteFavorite } from "@/lib/api"
 import { toast } from "@/lib/toast"
 
 function ProfileContent() {
@@ -29,6 +29,8 @@ function ProfileContent() {
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [isFetching, setIsFetching] = useState(true)
   const [favorites, setFavorites] = useState<Favorite[]>([])
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false)
+  const [deletingFavoriteIds, setDeletingFavoriteIds] = useState<Set<number>>(new Set())
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
@@ -134,22 +136,52 @@ function ProfileContent() {
     check()
   }, [token])
 
-  // Fetch favorites when token available
+  // Fetch favorites when token available and user switches to favorites tab
   useEffect(() => {
     const fetchFavs = async () => {
-      if (!token) return
+      if (!token || !authUser) return
+      setIsLoadingFavorites(true)
       try {
-        const res = await getFavorites(token)
+        const res = await getFavorites(authUser.userId, token)
         setFavorites(res || [])
       } catch (err) {
         console.error("Failed to fetch favorites:", err)
         setFavorites([])
+      } finally {
+        setIsLoadingFavorites(false)
       }
     }
 
-    // fetch on load and when user switches to favorites tab
+    // fetch when user switches to favorites tab
     if (activeTab === "favorites") fetchFavs()
-  }, [token, activeTab])
+  }, [token, authUser, activeTab])
+
+  const handleDeleteFavorite = async (favoriteId: number) => {
+    if (!token) {
+      toast.error(language === "vi" ? "Vui lòng đăng nhập" : "Please login")
+      return
+    }
+
+    setDeletingFavoriteIds(prev => new Set(prev).add(favoriteId))
+    try {
+      await deleteFavorite(favoriteId, token)
+      setFavorites(prev => prev.filter(f => f.id !== favoriteId))
+      toast.success(language === "vi" ? "Đã xóa khỏi yêu thích" : "Removed from favorites")
+    } catch (err) {
+      console.error("Failed to delete favorite:", err)
+      if (err instanceof Error) {
+        toast.error(err.message)
+      } else {
+        toast.error(language === "vi" ? "Không thể xóa" : "Failed to delete")
+      }
+    } finally {
+      setDeletingFavoriteIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(favoriteId)
+        return newSet
+      })
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -689,25 +721,94 @@ function ProfileContent() {
 
               {/* Favorites Tab */}
               {activeTab === "favorites" && (
-                <div className="bg-white dark:bg-slate-800 rounded-lg p-8 animate-fadeInUp">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{language === "vi" ? "Món ăn yêu thích" : "Favorite Foods"}</h2>
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-6 animate-fadeInUp">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {language === "vi" ? "Món ăn yêu thích" : "Favorite Foods"}
+                    </h2>
+                    <Link
+                      href="/favorites"
+                      className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium transition"
+                    >
+                      <span>{language === "vi" ? "Xem tất cả" : "View all"}</span>
+                      <ExternalLink size={16} />
+                    </Link>
+                  </div>
 
-                  {favorites.length > 0 ? (
-                    <div className="space-y-4">
-                      {favorites.map((f) => (
-                        <div key={f.id} className="p-4 border rounded-lg flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">{f.dishName}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{f.restaurantName}</p>
+                  {isLoadingFavorites ? (
+                    <div className="text-center py-8">
+                      <div className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                        <div className="w-5 h-5 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span>{language === "vi" ? "Đang tải..." : "Loading..."}</span>
+                      </div>
+                    </div>
+                  ) : favorites.length > 0 ? (
+                    <div className="space-y-3">
+                      {favorites.map((favorite) => {
+                        const isDeleting = deletingFavoriteIds.has(favorite.favoriteId || favorite.id)
+                        return (
+                          <div
+                            key={favorite.id}
+                            className="group relative flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-orange-300 dark:hover:border-orange-700 hover:shadow-md transition-all bg-gray-50 dark:bg-slate-900/50"
+                          >
+                            {/* Dish Image - Compact */}
+                            {favorite.dishImg ? (
+                              <div className="flex-shrink-0">
+                                <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 shadow-sm">
+                                  <img
+                                    src={favorite.dishImg}
+                                    alt={favorite.dishName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex-shrink-0 w-20 h-20 rounded-lg bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center shadow-sm">
+                                <Utensils className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                              </div>
+                            )}
+
+                            {/* Dish Info - No Link */}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-900 dark:text-white mb-1.5 text-base">
+                                {favorite.dishName}
+                              </h3>
+                              <div className="flex items-start gap-1.5 text-sm text-gray-600 dark:text-gray-400">
+                                <MapPin size={14} className="flex-shrink-0 mt-0.5" />
+                                <span className="line-clamp-2">{favorite.restaurantName}</span>
+                              </div>
+                            </div>
+
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => handleDeleteFavorite(favorite.favoriteId || favorite.id)}
+                              disabled={isDeleting}
+                              className="flex-shrink-0 p-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={language === "vi" ? "Xóa khỏi yêu thích" : "Remove from favorites"}
+                            >
+                              {isDeleting ? (
+                                <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                              ) : (
+                                <Trash2 size={20} />
+                              )}
+                            </button>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   ) : (
-                    <div className="text-center py-12">
-                      <Heart size={48} className="mx-auto text-gray-400 mb-4" />
-                      <p className="text-gray-600 dark:text-gray-400">{language === "vi" ? "Bạn chưa lưu món ăn yêu thích nào" : "You haven't saved any favorite foods yet"}</p>
-                      <Link href="/menu" className="inline-block mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-smooth font-semibold">{t("home.exploreMenu")}</Link>
+                    <div className="text-center py-8">
+                      <Heart size={40} className="mx-auto text-gray-400 mb-3" />
+                      <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
+                        {language === "vi" ? "Bạn chưa lưu món ăn yêu thích nào" : "You haven't saved any favorite foods yet"}
+                      </p>
+                      <Link
+                        href="/menu"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-smooth font-medium text-sm"
+                      >
+                        <Utensils size={16} />
+                        <span>{t("home.exploreMenu")}</span>
+                      </Link>
                     </div>
                   )}
                 </div>

@@ -21,6 +21,7 @@ function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
   const [ratings, setRatings] = useState<Rating[]>([])
   const [ratingsTotal, setRatingsTotal] = useState<number>(0)
   const [isLoadingRatings, setIsLoadingRatings] = useState<boolean>(false)
+  const [ratingsError, setRatingsError] = useState<string | null>(null)
 
   const [star, setStar] = useState<number>(5)
   const [comment, setComment] = useState<string>("")
@@ -48,12 +49,18 @@ function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
   useEffect(() => {
     const fetchRatings = async () => {
       setIsLoadingRatings(true)
+      setRatingsError(null)
       try {
         const data: RatingsListResponse = await getRestaurantRatings(restaurantId, token || undefined)
         setRatings(data.result || [])
         setRatingsTotal(data.totalIteams || data.result?.length || 0)
+        setRatingsError(null)
       } catch (err) {
         console.error("Failed to fetch ratings:", err)
+        setRatingsError("Không thể tải đánh giá. Vui lòng thử lại sau.")
+        // Still set empty arrays to prevent UI errors
+        setRatings([])
+        setRatingsTotal(0)
       } finally {
         setIsLoadingRatings(false)
       }
@@ -68,19 +75,33 @@ function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
       toast.error("Vui lòng đăng nhập để đánh giá")
       return
     }
+    
+    // Validate comment
+    if (!comment || comment.trim().length === 0) {
+      toast.error("Vui lòng nhập nội dung đánh giá")
+      return
+    }
+    
+    // Validate star rating
+    if (star < 1 || star > 5) {
+      toast.error("Vui lòng chọn số sao từ 1 đến 5")
+      return
+    }
+    
     try {
       setIsSubmitting(true)
-      await createRestaurantRating(restaurantId, { star, comment }, token)
-      toast.success("Đã thêm đánh giá")
+      await createRestaurantRating(restaurantId, { star, comment: comment.trim() }, token)
+      toast.success("Đã thêm đánh giá thành công!")
       setComment("")
       setStar(5)
-      // refresh list
+      // Refresh ratings list
       const data = await getRestaurantRatings(restaurantId, token)
       setRatings(data.result || [])
       setRatingsTotal(data.totalIteams || data.result?.length || 0)
     } catch (err: any) {
       console.error("Create rating failed:", err)
-      toast.error(err?.message || "Không thể gửi đánh giá")
+      const errorMessage = err?.message || "Không thể gửi đánh giá. Vui lòng thử lại."
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -277,6 +298,10 @@ function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
                 {/* Ratings List */}
                 {isLoadingRatings ? (
                   <p className="text-gray-600 dark:text-gray-400">Đang tải đánh giá...</p>
+                ) : ratingsError ? (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                    <p className="text-red-700 dark:text-red-300 text-sm">{ratingsError}</p>
+                  </div>
                 ) : ratings.length > 0 ? (
                   <div className="space-y-4">
                     {ratings.map((r) => (
