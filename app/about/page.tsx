@@ -41,13 +41,16 @@ export default function AboutPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Email</h4>
-                <p className="text-gray-600 dark:text-gray-400">theddse183048@fpt.edu.vn</p>
-                <p className="text-gray-600 dark:text-gray-400">chegiahuy0640@gmail.com</p>
+                <p className="text-gray-600 dark:text-gray-400">Nhiptxss180835@fpt.edu.vn</p>
+                  <p className="text-gray-600 dark:text-gray-400">Phuongnyss180679@fpt.edu.vn</p>
+                  <p className="text-gray-600 dark:text-gray-400">theddse183048@fpt.edu.vn</p>
+                  <p className="text-gray-600 dark:text-gray-400">MinhNHSE183472@fpt.edu.vn</p>
+                  <p className="text-gray-600 dark:text-gray-400">huycgse183043@fpt.edu.vn</p>
+                  <p className="text-gray-600 dark:text-gray-400">anhvplse172545@fpt.edu.vn</p>
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Số điện thoại</h4>
-                <p className="text-gray-600 dark:text-gray-400">0918314040</p>
-                <p className="text-gray-600 dark:text-gray-400">0382727683</p>
+                <p className="text-gray-600 dark:text-gray-400">0909090909</p>
               </div>
               <div className="md:col-span-2">
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Địa chỉ</h4>

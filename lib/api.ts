@@ -78,6 +78,7 @@ export interface UpdateUserProfileParams {
   Dislike?: string
   Allergy?: string
   Diet?: string
+  IsVegetarian?: boolean
 }
 
 export interface UserLocation {
@@ -357,9 +358,9 @@ export async function getUserProfile(userId: number, token: string): Promise<Use
   }
 }
 
-// Update user profile by ID - Using Next.js API route to avoid CORS
+// Update user profile - Using Next.js API route to avoid CORS
 export async function updateUserProfile(
-  userId: number,
+  _userId: number,
   params: UpdateUserProfileParams,
   token: string
 ): Promise<boolean> {
@@ -392,8 +393,11 @@ export async function updateUserProfile(
     if (params.image) {
       formData.append("image", params.image)
     }
+    if (typeof params.IsVegetarian === "boolean") {
+      formData.append("IsVegetarian", params.IsVegetarian.toString())
+    }
 
-    const response = await fetch(`/api/user/users/${userId}`, {
+    const response = await fetch(`/api/user/profile`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -402,7 +406,12 @@ export async function updateUserProfile(
       body: formData,
     })
 
-    const data = await response.json()
+    let data: ApiError | null = null
+    try {
+      data = await response.json()
+    } catch {
+      data = null
+    }
 
     if (response.ok) {
       return true
