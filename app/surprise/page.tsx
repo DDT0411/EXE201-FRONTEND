@@ -107,13 +107,29 @@ export default function SurprisePage() {
       }
     } catch (err) {
       console.error("Failed to get food suggestion:", err)
+      const fallbackMessage =
+        language === "vi"
+          ? "Không thể lấy gợi ý. Vui lòng thử lại sau."
+          : "We couldn't fetch a suggestion. Please try again later."
+
+      let displayMessage = fallbackMessage
+
       if (err instanceof Error) {
-        setError(err.message)
-        toast.error(err.message)
-      } else {
-        setError(language === "vi" ? "Không thể lấy gợi ý. Vui lòng thử lại sau." : "Failed to get suggestion. Please try again later.")
-        toast.error(language === "vi" ? "Không thể lấy gợi ý. Vui lòng thử lại sau." : "Failed to get suggestion. Please try again later.")
+        const rawMessage = err.message || ""
+        const unexpectedShape = rawMessage.toLowerCase().includes("unexpected response shape")
+
+        if (unexpectedShape) {
+          displayMessage =
+            language === "vi"
+              ? "Oops! AI chưa tìm được món phù hợp lúc này. Bạn hãy thử lại sau một chút nhé."
+              : "Oops! We couldn’t find a suitable dish right now. Please try again shortly."
+        } else {
+          displayMessage = rawMessage
+        }
       }
+
+      setError(displayMessage)
+      toast.error(displayMessage)
     } finally {
       setIsLoading(false)
     }

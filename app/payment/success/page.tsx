@@ -109,9 +109,6 @@ function PaymentSuccessContent() {
               setIsSuccess(true)
               toast.success("Thanh toán thành công!")
               setIsProcessing(false)
-              setTimeout(() => {
-                router.push("/login")
-              }, 2000)
               return
             }
           } else {
@@ -120,9 +117,6 @@ function PaymentSuccessContent() {
             setIsSuccess(true)
             toast.success("Thanh toán thành công!")
             setIsProcessing(false)
-            setTimeout(() => {
-              router.push("/login")
-            }, 2000)
             return
           }
         } else {
@@ -202,11 +196,11 @@ function PaymentSuccessContent() {
                   Về trang chủ
                 </button>
                 <button
-                  onClick={() => router.push("/profile")}
+                  onClick={() => router.push("/profile?tab=settings")}
                   className="flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white dark:bg-slate-700 border-2 border-green-500 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 font-semibold transition-all duration-200"
                 >
                   <FileText className="w-5 h-5" />
-                  Xem đơn hàng
+                  Xem lịch sử thanh toán
                 </button>
               </div>
             </div>
