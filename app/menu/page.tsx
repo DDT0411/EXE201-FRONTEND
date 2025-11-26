@@ -34,6 +34,10 @@ export default function MenuPage() {
   const [error, setError] = useState<string | null>(null)
   const locationRetryRef = useRef(false)
   const [isRefreshingLocation, setIsRefreshingLocation] = useState(false)
+  const categoriesScrollRef = useRef<HTMLDivElement | null>(null)
+  const [categoriesScrollProgress, setCategoriesScrollProgress] = useState(0)
+  const [isCategoryScrollable, setIsCategoryScrollable] = useState(false)
+  const [isSliderInteracting, setIsSliderInteracting] = useState(false)
 
   // Fetch tags on mount
   useEffect(() => {
@@ -260,6 +264,72 @@ export default function MenuPage() {
     }
   }, [token, language, refreshLocation, fetchRestaurants])
 
+  const updateCategoryScrollMetrics = useCallback(() => {
+    const container = categoriesScrollRef.current
+    if (!container) {
+      setIsCategoryScrollable(false)
+      setCategoriesScrollProgress(0)
+      return
+    }
+
+    const maxScrollLeft = container.scrollWidth - container.clientWidth
+    setIsCategoryScrollable(maxScrollLeft > 4)
+
+    if (maxScrollLeft <= 0) {
+      setCategoriesScrollProgress(0)
+      return
+    }
+
+    const progress = (container.scrollLeft / maxScrollLeft) * 100
+    setCategoriesScrollProgress(progress)
+  }, [])
+
+  const handleCategoryScroll = useCallback(() => {
+    updateCategoryScrollMetrics()
+  }, [updateCategoryScrollMetrics])
+
+  const handleSliderChange = useCallback(
+    (value: number) => {
+      const container = categoriesScrollRef.current
+      if (!container) {
+        return
+      }
+
+      const maxScrollLeft = container.scrollWidth - container.clientWidth
+      const nextScrollLeft = (value / 100) * maxScrollLeft
+      container.scrollTo({
+        left: nextScrollLeft,
+        behavior: isSliderInteracting ? "auto" : "smooth",
+      })
+      setCategoriesScrollProgress(value)
+
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(updateCategoryScrollMetrics)
+      }
+    },
+    [updateCategoryScrollMetrics, isSliderInteracting]
+  )
+
+  const handleSliderInteractionStart = useCallback(() => {
+    setIsSliderInteracting(true)
+  }, [])
+
+  const handleSliderInteractionEnd = useCallback(() => {
+    setIsSliderInteracting(false)
+  }, [])
+
+  useEffect(() => {
+    updateCategoryScrollMetrics()
+    if (typeof window === "undefined") {
+      return
+    }
+    const handleResize = () => updateCategoryScrollMetrics()
+    window.addEventListener("resize", handleResize)
+    return () => {
+      window.removeEventListener("resize", handleResize)
+    }
+  }, [tags, updateCategoryScrollMetrics])
+
   // Build categories from tags
   const CATEGORIES = [
     { id: "all", name: t("menu.categories.all") },
@@ -347,34 +417,61 @@ export default function MenuPage() {
           </div>
 
           {/* Category Filter */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {CATEGORIES.map((category, index) => {
-              const delayMap = [100, 200, 300, 400, 500] as const
-              const delay = delayMap[index % delayMap.length]
-              return (
-                <ScrollReveal key={category.id} direction="left" delay={delay}>
-                  {category.id === "all" ? (
-                    <button
-                      onClick={() => setSelectedCategory(category.id)}
-                      className={`inline-flex items-center px-4 py-2 rounded-full whitespace-nowrap transition ${
-                        selectedCategory === category.id
-                          ? "bg-orange-500 text-white"
-                          : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                      }`}
-                    >
-                      {category.name}
-                    </button>
-                  ) : (
-                    <a
-                      href={`/tag/${category.id}`}
-                      className="inline-flex items-center px-4 py-2 rounded-full whitespace-nowrap transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-500 hover:text-white"
-                    >
-                      {category.name}
-                    </a>
-                  )}
-                </ScrollReveal>
-              )
-            })}
+          <div className="relative">
+            <div
+              ref={categoriesScrollRef}
+              onScroll={handleCategoryScroll}
+              className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide"
+            >
+              {CATEGORIES.map((category, index) => {
+                const delayMap = [100, 200, 300, 400, 500] as const
+                const delay = delayMap[index % delayMap.length]
+                return (
+                  <ScrollReveal key={category.id} direction="left" delay={delay}>
+                    {category.id === "all" ? (
+                      <button
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={`inline-flex items-center px-4 py-2 rounded-full whitespace-nowrap transition ${
+                          selectedCategory === category.id
+                            ? "bg-orange-500 text-white"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        {category.name}
+                      </button>
+                    ) : (
+                      <a
+                        href={`/tag/${category.id}`}
+                        className="inline-flex items-center px-4 py-2 rounded-full whitespace-nowrap transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-500 hover:text-white"
+                      >
+                        {category.name}
+                      </a>
+                    )}
+                  </ScrollReveal>
+                )
+              })}
+            </div>
+            {isCategoryScrollable && (
+              <div className="hidden md:flex items-center gap-3 mt-3">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {language === "vi" ? "Kéo để xem thêm" : "Slide to explore"}
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={categoriesScrollProgress}
+                  onChange={(event) => handleSliderChange(Number(event.target.value))}
+                  onMouseDown={handleSliderInteractionStart}
+                  onMouseUp={handleSliderInteractionEnd}
+                  onMouseLeave={handleSliderInteractionEnd}
+                  onTouchStart={handleSliderInteractionStart}
+                  onTouchEnd={handleSliderInteractionEnd}
+                  aria-label={language === "vi" ? "Thanh trượt danh mục" : "Category slider"}
+                  className="flex-1 accent-orange-500 cursor-pointer"
+                />
+              </div>
+            )}
           </div>
         </ScrollReveal>
       </section>

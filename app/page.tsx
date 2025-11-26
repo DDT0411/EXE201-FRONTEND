@@ -5,18 +5,31 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { ScrollReveal } from "@/components/scroll-reveal"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ChefHat, MapPin, Sparkles } from "lucide-react"
 import { useLanguage } from "@/hooks/use-language"
 import { getTranslation } from "@/lib/i18n"
 import { getTags, Tag } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
+import { toast } from "@/lib/toast"
 
 export default function Home() {
   const { language } = useLanguage()
   const { token, isLoading: authLoading } = useAuth()
+  const router = useRouter()
   const t = (key: string) => getTranslation(language, key)
   const [tags, setTags] = useState<Tag[]>([])
   const [isLoadingTags, setIsLoadingTags] = useState(false)
+  const handleTagClick = (tagId: number) => {
+    if (!token) {
+      toast.error(
+        language === "vi" ? "Vui lòng đăng nhập để xem quán ăn trong danh mục này" : "Please log in to view restaurants in this category"
+      )
+      router.push("/login")
+      return
+    }
+    router.push(`/tag/${tagId}`)
+  }
 
   // Fetch popular tags
   useEffect(() => {
@@ -158,22 +171,24 @@ export default function Home() {
                 const delay = delayMap[index % delayMap.length]
                 return (
                   <ScrollReveal key={tag.tagID} direction="up" delay={delay}>
-                    <Link href={`/tag/${tag.tagID}`}>
-                      <div className="group bg-white dark:bg-slate-800 rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer border border-gray-200 dark:border-gray-700">
-                        <div className="aspect-square overflow-hidden bg-gray-100 dark:bg-gray-900">
-                          <img
-                            src={tag.tagImg || "/placeholder.svg"}
-                            alt={tag.tagName}
-                            className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
-                          />
-                        </div>
-                        <div className="p-3 text-center">
-                          <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition">
-                            {tag.tagName}
-                          </h3>
-                        </div>
+                    <button
+                      type="button"
+                      onClick={() => handleTagClick(tag.tagID)}
+                      className="group w-full bg-white dark:bg-slate-800 rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 border border-gray-200 dark:border-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+                    >
+                      <div className="aspect-square overflow-hidden bg-gray-100 dark:bg-gray-900">
+                        <img
+                          src={tag.tagImg || "/placeholder.svg"}
+                          alt={tag.tagName}
+                          className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                        />
                       </div>
-                    </Link>
+                      <div className="p-3 text-center">
+                        <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition">
+                          {tag.tagName}
+                        </h3>
+                      </div>
+                    </button>
                   </ScrollReveal>
                 )
               })}

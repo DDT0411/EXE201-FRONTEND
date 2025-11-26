@@ -6,12 +6,16 @@ import { Footer } from "@/components/footer"
 import { ScrollReveal } from "@/components/scroll-reveal"
 import { RestaurantCard } from "@/components/restaurant-card"
 import { useAuth } from "@/hooks/use-auth"
+import { useLanguage } from "@/hooks/use-language"
+import { useRouter } from "next/navigation"
 import { getTagWithRestaurants, TagWithRestaurants } from "@/lib/api"
 
 function TagContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const tagId = Number.parseInt(id)
-  const { token } = useAuth()
+  const { token, isLoading: authLoading } = useAuth()
+  const { language } = useLanguage()
+  const router = useRouter()
 
   const [tagData, setTagData] = useState<TagWithRestaurants | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -19,22 +23,33 @@ function TagContent({ params }: { params: Promise<{ id: string }> }) {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!token) {
+        setTagData(null)
+        setError(
+          language === "vi" ? "Vui lòng đăng nhập để xem các quán ăn trong danh mục này" : "Please log in to view restaurants in this category"
+        )
+        setIsLoading(false)
+        return
+      }
+
       setIsLoading(true)
       setError(null)
 
       try {
-        const data = await getTagWithRestaurants(tagId, token || undefined)
+        const data = await getTagWithRestaurants(tagId, token)
         setTagData(data)
       } catch (err) {
         console.error("Failed to fetch tag data:", err)
-        setError("Không thể tải dữ liệu")
+        setError(language === "vi" ? "Không thể tải dữ liệu" : "Unable to load data")
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchData()
-  }, [tagId, token])
+    if (!authLoading) {
+      fetchData()
+    }
+  }, [tagId, token, authLoading, language])
 
   if (isLoading) {
     return (
@@ -57,8 +72,17 @@ function TagContent({ params }: { params: Promise<{ id: string }> }) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4 text-center">
           <p className="text-gray-600 dark:text-gray-400">{error || "Không tìm thấy thông tin"}</p>
+          {!token && !authLoading && (
+            <button
+              type="button"
+              onClick={() => router.push("/login")}
+              className="px-6 py-2 rounded-full bg-orange-500 text-white font-semibold hover:bg-orange-600 transition"
+            >
+              {language === "vi" ? "Đăng nhập ngay" : "Sign in"}
+            </button>
+          )}
         </div>
         <Footer />
       </div>
