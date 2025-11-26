@@ -156,6 +156,11 @@ function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
     )
   }
 
+  const googleMapsUrl =
+    restaurant.latitude && restaurant.longitude
+      ? `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`
+      : null
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-slate-950">
       <Header />
@@ -368,6 +373,20 @@ function RestaurantContent({ params }: { params: Promise<{ id: string }> }) {
                     </div>
                   )}
                 </div>
+
+                {googleMapsUrl && (
+                  <div className="mt-4">
+                    <a
+                      href={googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center w-full px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors"
+                    >
+                      Xem trên Google Map
+                    </a>
+                  </div>
+                )}
+
                 {/* Restaurant info below map */}
                 {(restaurant.resName || restaurant.resAddress) && (
                   <div className="mt-4 space-y-2">
